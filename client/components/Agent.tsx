@@ -11,6 +11,8 @@ import { createFeedback } from "@/lib/actions/general.action";
 import CodeEditor from "@/components/CodeEditor";
 import AIVoiceVisualizer from "@/components/AIVoiceVisualizer";
 import AIAvatar from "@/components/AIAvatar";
+import DownloadReportButton from "@/components/DownloadReportButton";
+import { X, Loader2 } from "lucide-react";
 
 enum CallStatus {
   INACTIVE = "INACTIVE",
@@ -54,6 +56,11 @@ const Agent = ({
   const [tabWarning, setTabWarning] = useState(false);
   const [cheatingCount, setCheatingCount] = useState(0);
   const [mainViewMode, setMainViewMode] = useState<MainViewMode>("interview");
+
+  // Report Popup States
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+  const [showReportPopup, setShowReportPopup] = useState(false);
+  const [feedbackData, setFeedbackData] = useState<any>(null);
 
   // Anti-cheating: Handle tab visibility and beforeunload - ONLY during active call
   useEffect(() => {
@@ -180,33 +187,37 @@ const Agent = ({
     if (messages.length > 0) {
       setLastMessage(messages[messages.length - 1].content);
     }
+  }, [messages]);
 
-    const handleGenerateFeedback = async (messages: SavedMessage[]) => {
-      console.log("handleGenerateFeedback");
-
-      const { success, feedbackId: id } = await createFeedback({
+  const handleGenerateFeedback = async () => {
+    if (messages.length === 0) return;
+    setIsGeneratingReport(true);
+    try {
+      const result = await createFeedback({
         interviewId: interviewId!,
         userId: userId!,
         transcript: messages,
         feedbackId,
       });
 
-      if (success && id) {
-        router.push(`/interview/${interviewId}/feedback`);
+      if (result.success && result.data) {
+        setFeedbackData(result.data);
+        setShowReportPopup(true);
       } else {
-        console.log("Error saving feedback");
-        router.push("/");
+        console.error("Error saving feedback");
       }
-    };
-
-    if (callStatus === CallStatus.FINISHED) {
-      if (type === "generate") {
-        router.push("/");
-      } else {
-        handleGenerateFeedback(messages);
-      }
+    } catch (error) {
+      console.error("Error generating report", error);
+    } finally {
+      setIsGeneratingReport(false);
     }
-  }, [messages, callStatus, feedbackId, interviewId, router, type, userId]);
+  };
+
+  useEffect(() => {
+    if (callStatus === CallStatus.FINISHED && type === "generate") {
+      router.push("/");
+    }
+  }, [callStatus, router, type]);
 
   const handleCall = async () => {
     setCallStatus(CallStatus.CONNECTING);
@@ -222,17 +233,17 @@ const Agent = ({
     }
 
     const workflowId = process.env.NEXT_PUBLIC_VAPI_WORKFLOW_ID;
+    const assistantId = process.env.NEXT_PUBLIC_VAPI_ASSISTANT_ID;
     const webToken = process.env.NEXT_PUBLIC_VAPI_WEB_TOKEN;
 
-    console.log("VAPI Config:", { workflowId, webToken: webToken?.slice(0, 10) + "...", type, userName, userId });
-
-    if (!workflowId) {
-      console.error("NEXT_PUBLIC_VAPI_WORKFLOW_ID is not set");
-      setCallStatus(CallStatus.INACTIVE);
-      return;
-    }
+    console.log("VAPI Config:", { workflowId, assistantId, webToken: webToken?.slice(0, 10) + "...", type, userName, userId });
 
     if (type === "generate") {
+      if (!workflowId) {
+        console.error("NEXT_PUBLIC_VAPI_WORKFLOW_ID is not set");
+        setCallStatus(CallStatus.INACTIVE);
+        return;
+      }
       try {
         await vapi.start(workflowId, {
           variableValues: {
@@ -245,6 +256,7 @@ const Agent = ({
         setCallStatus(CallStatus.INACTIVE);
       }
     } else {
+      // Interview type - use assistant ID or fallback to inline assistant config
       let formattedQuestions = "";
       if (questions) {
         formattedQuestions = questions
@@ -252,11 +264,27 @@ const Agent = ({
           .join("\n");
       }
 
-      await vapi.start(interviewer, {
-        variableValues: {
-          questions: formattedQuestions,
-        },
-      });
+      try {
+        if (assistantId) {
+          // Use pre-configured assistant from VAPI dashboard
+          await vapi.start(assistantId, {
+            variableValues: {
+              questions: formattedQuestions,
+            },
+          });
+        } else {
+          // Fallback: create temporary assistant inline (not recommended for production)
+          console.warn("NEXT_PUBLIC_VAPI_ASSISTANT_ID not set, using inline assistant config");
+          await vapi.start(interviewer, {
+            variableValues: {
+              questions: formattedQuestions,
+            },
+          });
+        }
+      } catch (err) {
+        console.error("Vapi interview start error:", err);
+        setCallStatus(CallStatus.INACTIVE);
+      }
     }
   };
 
@@ -506,7 +534,7 @@ const Agent = ({
         </div>
       )}
 
-      <div className="w-full flex justify-center shrink-0 py-2 pb-4">
+      <div className="w-full flex justify-center shrink-0 py-2 pb-4 gap-4">
         {callStatus !== "ACTIVE" ? (
           <button 
             className="relative btn-call flex items-center justify-center gap-2 h-10 px-6" 
@@ -529,6 +557,28 @@ const Agent = ({
           >
             <span className="w-2 h-2 rounded-full bg-white/80 animate-pulse" />
             <span className="text-sm">End</span>
+          </button>
+        )}
+        
+        {type !== "generate" && (
+          <button
+            className={cn(
+              "flex items-center justify-center gap-2 h-10 px-6 rounded-xl font-medium transition-all duration-300",
+              callStatus === CallStatus.FINISHED
+                ? "bg-primary-200 text-dark-100 hover:bg-primary-200/80"
+                : "bg-dark-300 text-gray-500 cursor-not-allowed"
+            )}
+            onClick={handleGenerateFeedback}
+            disabled={callStatus !== CallStatus.FINISHED || isGeneratingReport}
+          >
+            {isGeneratingReport ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span className="text-sm">Analyzing...</span>
+              </>
+            ) : (
+              <span className="text-sm">Generate Report</span>
+            )}
           </button>
         )}
       </div>
@@ -556,6 +606,82 @@ const Agent = ({
             >
               I Understand - Return to Interview
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Report Popup Modal */}
+      {showReportPopup && feedbackData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
+          <div className="bg-dark-200 border-2 border-dark-400 rounded-2xl p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto relative">
+            <button
+              onClick={() => setShowReportPopup(false)}
+              className="absolute top-4 right-4 p-2 rounded-full bg-dark-300 hover:bg-dark-400 text-gray-400 hover:text-white transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            
+            <h2 className="text-2xl font-bold text-white mb-6">Interview Evaluation Report</h2>
+            
+            <div className="space-y-6">
+              {/* Overall Score */}
+              <div className="flex items-center gap-4 bg-dark-300 p-4 rounded-xl">
+                <div className="w-16 h-16 rounded-full border-4 border-primary-200 flex items-center justify-center">
+                  <span className="text-xl font-bold text-white">{feedbackData.totalScore}</span>
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-white">Overall Readiness Score</h3>
+                  <p className="text-gray-400 text-sm">Based on your performance across all evaluated categories.</p>
+                </div>
+              </div>
+
+              {/* Expert Insights */}
+              <div className="bg-dark-300 p-4 rounded-xl">
+                <h3 className="text-lg font-semibold text-white mb-2">Expert Insights</h3>
+                <p className="text-gray-300 text-sm leading-relaxed">{feedbackData.finalAssessment}</p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Strengths */}
+                <div className="bg-dark-300 p-4 rounded-xl border border-green-500/20">
+                  <h3 className="text-lg font-semibold text-green-400 mb-3">Key Strengths</h3>
+                  <ul className="space-y-2">
+                    {feedbackData.strengths?.map((strength: string, idx: number) => (
+                      <li key={idx} className="text-gray-300 text-sm flex items-start gap-2">
+                        <span className="text-green-400 mt-0.5">•</span>
+                        <span>{strength}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                {/* Improvements */}
+                <div className="bg-dark-300 p-4 rounded-xl border border-orange-500/20">
+                  <h3 className="text-lg font-semibold text-orange-400 mb-3">Areas for Growth</h3>
+                  <ul className="space-y-2">
+                    {feedbackData.areasForImprovement?.map((improvement: string, idx: number) => (
+                      <li key={idx} className="text-gray-300 text-sm flex items-start gap-2">
+                        <span className="text-orange-400 mt-0.5">•</span>
+                        <span>{improvement}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+
+              {/* PDF Export Button */}
+              <div className="pt-4 flex justify-end border-t border-dark-400">
+                <DownloadReportButton
+                  interviewRole={type || "General"}
+                  totalScore={feedbackData.totalScore || 0}
+                  finalAssessment={feedbackData.finalAssessment || ""}
+                  strengths={feedbackData.strengths || []}
+                  improvements={feedbackData.areasForImprovement || []}
+                  categoryScores={feedbackData.categoryScores || []}
+                  userName={userName}
+                />
+              </div>
+            </div>
           </div>
         </div>
       )}

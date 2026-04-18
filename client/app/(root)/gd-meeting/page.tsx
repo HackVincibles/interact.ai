@@ -22,6 +22,7 @@ export default function GDMeetingPage() {
   const userName = searchParams.get("userName") || "Participant";
   const topic = searchParams.get("topic") || "Group Discussion";
   const duration = parseInt(searchParams.get("duration") || "30");
+  const isHost = searchParams.get("isHost") === "true";
 
   // Validate meeting parameters
   if (!meetingId) {
@@ -51,6 +52,7 @@ export default function GDMeetingPage() {
       userEmail={userName.toLowerCase().replace(/\s+/g, '.') + "@interact.ai"}
       topic={topic}
       duration={duration}
+      isHost={isHost}
       onLeave={() => {
         console.log("Meeting ended");
         window.location.href = "/";

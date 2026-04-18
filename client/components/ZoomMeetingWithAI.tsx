@@ -12,6 +12,7 @@ interface ZoomMeetingWithAIProps {
   userEmail?: string;
   topic: string;
   duration: number;
+  isHost?: boolean;
   onLeave: () => void;
 }
 
@@ -22,6 +23,7 @@ export default function ZoomMeetingWithAI({
   userEmail = "",
   topic,
   duration,
+  isHost = false,
   onLeave,
 }: ZoomMeetingWithAIProps) {
   const [aiMessages, setAiMessages] = useState<string[]>([]);
@@ -68,12 +70,15 @@ export default function ZoomMeetingWithAI({
         ZoomMtg.preLoadWasm();
         ZoomMtg.prepareWebSDK();
 
+        const role = isHost ? 1 : 0; // 1 = host, 0 = participant
+        console.log(`Generating signature as ${isHost ? 'HOST' : 'PARTICIPANT'} with role ${role}`);
+        
         const response = await fetch("/api/zoom/signature", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             meetingNumber: meetingNumber.replace(/\D/g, ""),
-            role: 0,
+            role: role,
           }),
         });
 
