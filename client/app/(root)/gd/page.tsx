@@ -31,6 +31,7 @@ import { getCurrentUser } from "@/lib/actions/auth.action";
 
 interface ZoomMeeting {
   joinUrl: string;
+  startUrl?: string;
   meetingId: string;
   password?: string;
   topic?: string;
@@ -71,10 +72,11 @@ export default function GDPage() {
       }
 
       const data = await response.json();
-      
-      // Set meeting state first
+
+      // Store meeting data with both joinUrl and startUrl
       setMeeting({
         joinUrl: data.joinUrl,
+        startUrl: data.startUrl,
         meetingId: data.meetingId,
         password: data.password,
         duration: duration,
@@ -85,6 +87,7 @@ export default function GDPage() {
       // Fallback: Show instructions for manual Zoom setup
       setMeeting({
         joinUrl: "",
+        startUrl: "",
         meetingId: "manual-setup",
       });
     } finally {
@@ -267,34 +270,36 @@ export default function GDPage() {
               <button
                 onClick={() => {
                   const isLinkMode = !document.getElementById('link-form')?.classList.contains('hidden');
-                  
+
                   if (isLinkMode) {
-                    // Join via link
+                    // Join via link - redirect directly to Zoom
                     const linkInput = document.getElementById('meeting-link-input') as HTMLInputElement;
                     const nameInput = document.querySelectorAll('input[placeholder="Enter Your Name"]')[1] as HTMLInputElement;
-                    
+
                     if (linkInput?.value && nameInput?.value) {
-                      // Extract meeting ID from Zoom link
-                      const zoomLinkRegex = /zoom\.us\/j\/(\d+)/;
-                      const match = linkInput.value.match(zoomLinkRegex);
-                      
-                      if (match && match[1]) {
-                        const meetingId = match[1];
-                        window.location.href = `/gd-meeting?meetingId=${meetingId}&password=&userName=${nameInput.value}&topic=Joined+Meeting&duration=30`;
-                      } else {
-                        alert('Invalid Zoom meeting link. Please check the link format.');
+                      // Use the provided Zoom link directly
+                      let zoomUrl = linkInput.value.trim();
+                      // Add uname parameter if not present
+                      if (!zoomUrl.includes('uname=')) {
+                        zoomUrl += (zoomUrl.includes('?') ? '&' : '?') + `uname=${encodeURIComponent(nameInput.value)}`;
                       }
+                      window.location.href = zoomUrl;
                     } else {
                       alert('Please fill in meeting link and your name');
                     }
                   } else {
-                    // Manual join
+                    // Manual join - redirect to Zoom with meeting ID
                     const meetingIdInput = document.querySelector('input[placeholder="Enter Meeting ID"]') as HTMLInputElement;
                     const passwordInput = document.querySelector('input[placeholder="Enter Password"]') as HTMLInputElement;
                     const nameInput = document.querySelector('input[placeholder="Enter Your Name"]') as HTMLInputElement;
-                    
+
                     if (meetingIdInput?.value && nameInput?.value) {
-                      window.location.href = `/gd-meeting?meetingId=${meetingIdInput.value}&password=${passwordInput?.value || ''}&userName=${nameInput.value}&topic=Joined+Meeting&duration=30`;
+                      const meetingId = meetingIdInput.value.trim();
+                      const password = passwordInput?.value || '';
+                      const userName = encodeURIComponent(nameInput.value);
+                      // Redirect directly to Zoom
+                      const zoomUrl = `https://zoom.us/j/${meetingId}${password ? `?pwd=${password}` : ''}${password ? '&' : '?'}uname=${userName}`;
+                      window.location.href = zoomUrl;
                     } else {
                       alert('Please fill in Meeting ID and Your Name');
                     }
@@ -303,7 +308,7 @@ export default function GDPage() {
                 className="w-full py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors flex items-center justify-center gap-2 text-sm"
               >
                 <Users className="w-4 h-4" />
-                Join Meeting
+                Join Zoom Meeting
               </button>
             </div>
           </section>
@@ -429,6 +434,9 @@ export default function GDPage() {
                           userName: userName,
                           topic: topic,
                           duration: duration.toString(),
+                          joinUrl: meeting.joinUrl || "",
+                          startUrl: meeting.startUrl || "",
+                          isHost: "true",
                         });
                         window.location.href = `/gd-meeting?${params.toString()}`;
                       }}

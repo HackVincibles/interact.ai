@@ -3,8 +3,8 @@
 import { useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 
-// Dynamically import RealZoomMeeting to avoid SSR issues
-const RealZoomMeeting = dynamic(() => import("@/components/RealZoomMeeting"), {
+// Dynamically import ZoomMeetingWithAI to avoid SSR issues
+const ZoomMeetingWithAI = dynamic(() => import("@/components/ZoomMeetingWithAI"), {
   ssr: false,
   loading: () => (
     <div className="flex items-center justify-center h-screen bg-gray-900">
@@ -15,7 +15,7 @@ const RealZoomMeeting = dynamic(() => import("@/components/RealZoomMeeting"), {
 
 export default function GDMeetingPage() {
   const searchParams = useSearchParams();
-  
+
   // Get meeting parameters from URL
   const meetingId = searchParams.get("meetingId") || "";
   const password = searchParams.get("password") || "";
@@ -42,19 +42,19 @@ export default function GDMeetingPage() {
     );
   }
 
-  // Return the RealZoomMeeting component with all parameters
+  // Return the ZoomMeetingWithAI component with embedded Zoom + AI panel
   return (
-    <div className="h-screen">
-      <RealZoomMeeting
-        meetingId={meetingId}
-        userName={userName}
-        userEmail={userName.toLowerCase().replace(/\s+/g, '.') + "@interact.ai"}
-        topic={topic}
-        duration={duration}
-        onLeave={() => {
-          console.log("Meeting ended - user clicked leave");
-        }}
-      />
-    </div>
+    <ZoomMeetingWithAI
+      meetingNumber={meetingId}
+      password={password}
+      userName={userName}
+      userEmail={userName.toLowerCase().replace(/\s+/g, '.') + "@interact.ai"}
+      topic={topic}
+      duration={duration}
+      onLeave={() => {
+        console.log("Meeting ended");
+        window.location.href = "/";
+      }}
+    />
   );
 }

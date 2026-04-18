@@ -378,7 +378,7 @@ export default function LandingPage() {
                   <p className="text-muted-foreground text-sm">For serious candidates</p>
                 </div>
                 <div className="space-y-2">
-                  <span className="text-4xl font-black">¥299</span>
+                  <span className="text-4xl font-black">₹299</span>
                   <p className="text-muted-foreground text-sm">per month</p>
                 </div>
                 <ul className="space-y-3">
@@ -414,7 +414,7 @@ export default function LandingPage() {
                   <p className="text-muted-foreground text-sm">For career accelerators</p>
                 </div>
                 <div className="space-y-2">
-                  <span className="text-4xl font-black">¥599</span>
+                  <span className="text-4xl font-black">₹599</span>
                   <p className="text-muted-foreground text-sm">per month</p>
                 </div>
                 <ul className="space-y-3">
