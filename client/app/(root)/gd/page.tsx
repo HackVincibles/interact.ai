@@ -434,8 +434,6 @@ export default function GDPage() {
                           userName: userName,
                           topic: topic,
                           duration: duration.toString(),
-                          joinUrl: meeting.joinUrl || "",
-                          startUrl: meeting.startUrl || "",
                           isHost: "true",
                         });
                         window.location.href = `/gd-meeting?${params.toString()}`;

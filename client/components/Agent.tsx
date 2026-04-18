@@ -12,6 +12,7 @@ import CodeEditor from "@/components/CodeEditor";
 import AIVoiceVisualizer from "@/components/AIVoiceVisualizer";
 import AIAvatar from "@/components/AIAvatar";
 import DownloadReportButton from "@/components/DownloadReportButton";
+import { generatePDFReport } from "@/lib/pdf-generator";
 import { X, Loader2 } from "lucide-react";
 
 enum CallStatus {
@@ -203,6 +204,19 @@ const Agent = ({
       if (result.success && result.data) {
         setFeedbackData(result.data);
         setShowReportPopup(true);
+        
+        // Auto-download PDF report
+        await generatePDFReport({
+          type: "interview",
+          userName: userName || "Candidate",
+          role: type === "generate" ? "Technical" : "Interview",
+          totalScore: result.data.totalScore,
+          finalAssessment: result.data.finalAssessment,
+          strengths: result.data.strengths,
+          areasForImprovement: result.data.areasForImprovement,
+          categoryScores: result.data.categoryScores,
+          transcript: messages,
+        });
       } else {
         console.error("Error saving feedback");
       }
@@ -346,9 +360,14 @@ const Agent = ({
     return () => clearTimeout(timer);
   }, [stream, viewMode]);
 
-  const handleDisconnect = () => {
+  const handleDisconnect = async () => {
     setCallStatus(CallStatus.FINISHED);
     vapi.stop();
+    
+    // Auto-generate feedback and PDF for interview type
+    if (type === "interview" && messages.length > 0) {
+      await handleGenerateFeedback();
+    }
   };
 
   // Render small card for top bar

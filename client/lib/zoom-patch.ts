@@ -1,11 +1,29 @@
 // Zoom SDK React Compatibility Patch
 // This file must be imported BEFORE Zoom SDK to prevent ReactCurrentOwner errors
+import * as React from 'react';
 
 console.log('🚀 Loading Zoom SDK compatibility patch...');
 
 // IMMEDIATE PATCH - Runs as soon as this module loads, before any other code
 if (typeof window !== 'undefined') {
   console.log('🔥 EMERGENCY PATCH - Applying immediately at module load...');
+
+  // React 19 Compatibility Patch for Zoom SDK
+  try {
+    const ReactAny = React as any;
+    if (!ReactAny.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED) {
+      ReactAny.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED = {
+        ReactCurrentOwner: { current: null },
+      };
+      console.log('🔥 React 19 Patch: Created __SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED');
+    } else if (!ReactAny.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED.ReactCurrentOwner) {
+      ReactAny.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED.ReactCurrentOwner = { current: null };
+      console.log('🔥 React 19 Patch: Added ReactCurrentOwner to existing internals');
+    }
+  } catch (err) {
+    console.error('Failed to patch React internals for Zoom SDK:', err);
+  }
+
   
   // Type assertion for window object with React devtools hook
   const windowWithReact = window as any;

@@ -2,15 +2,11 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   /* config options here */
-  // images: {
-  //   remotePatterns: [
-  //     {
-  //       protocol: "https",
-  //       hostname: "ik.imagekit.io",
-  //       port: "",
-  //     },
-  //   ],
-  // },
+  webpack: (config, { isServer }) => {
+    // Exclude @zoom/meetingsdk from webpack bundle - loaded dynamically via CDN in iframe
+    config.externals = [...(config.externals || []), '@zoom/meetingsdk'];
+    return config;
+  },
   eslint: {
     ignoreDuringBuilds: true,
   },

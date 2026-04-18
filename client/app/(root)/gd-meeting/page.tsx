@@ -3,6 +3,8 @@
 import { useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 
+import { Suspense } from "react";
+
 // Dynamically import ZoomMeetingWithAI to avoid SSR issues
 const ZoomMeetingWithAI = dynamic(() => import("@/components/ZoomMeetingWithAI"), {
   ssr: false,
@@ -13,7 +15,7 @@ const ZoomMeetingWithAI = dynamic(() => import("@/components/ZoomMeetingWithAI")
   ),
 });
 
-export default function GDMeetingPage() {
+function MeetingContent() {
   const searchParams = useSearchParams();
 
   // Get meeting parameters from URL
@@ -60,3 +62,16 @@ export default function GDMeetingPage() {
     />
   );
 }
+
+export default function GDMeetingPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center h-screen bg-gray-900">
+        <div className="w-16 h-16 border-4 border-gray-600 border-t-blue-500 rounded-full animate-spin" />
+      </div>
+    }>
+      <MeetingContent />
+    </Suspense>
+  );
+}
+
