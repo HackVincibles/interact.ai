@@ -107,8 +107,7 @@ router.post("/create-meeting", async (req, res) => {
     
     const meetingData = {
       topic,
-      type: 2, // Scheduled meeting
-      start_time: new Date().toISOString(),
+      type: 1, // Instant meeting - starts immediately, no host required
       duration: duration || 30,
       timezone: "UTC",
       password: password || Math.random().toString(36).substring(2, 8),
@@ -119,6 +118,8 @@ router.post("/create-meeting", async (req, res) => {
         mute_upon_entry: false,
         waiting_room: false,
         auto_recording: "none",
+        enforce_login: false,
+        approval_type: 2, // No registration required
       },
     };
     
