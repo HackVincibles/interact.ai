@@ -191,9 +191,16 @@ const Agent = ({
   }, [messages]);
 
   const handleGenerateFeedback = async () => {
-    if (messages.length === 0) return;
+    if (messages.length === 0) {
+      console.log("No messages to generate feedback from");
+      return;
+    }
+    
+    console.log("Starting feedback generation...");
     setIsGeneratingReport(true);
+    
     try {
+      console.log("Calling createFeedback with:", { interviewId, userId, messageCount: messages.length });
       const result = await createFeedback({
         interviewId: interviewId!,
         userId: userId!,
@@ -201,13 +208,17 @@ const Agent = ({
         feedbackId,
       });
 
+      console.log("createFeedback result:", result);
+
       if (result.success && result.data) {
+        console.log("Feedback created successfully, data:", result.data);
         setFeedbackData(result.data);
         setShowReportPopup(true);
         
         // Auto-download PDF report
-        await generatePDFReport({
-          type: "interview",
+        console.log("Starting PDF generation...");
+        const pdfData = {
+          type: "interview" as const,
           userName: userName || "Candidate",
           role: type === "generate" ? "Technical" : "Interview",
           totalScore: result.data.totalScore,
@@ -216,12 +227,17 @@ const Agent = ({
           areasForImprovement: result.data.areasForImprovement,
           categoryScores: result.data.categoryScores,
           transcript: messages,
-        });
+        };
+        console.log("PDF data:", pdfData);
+        
+        await generatePDFReport(pdfData);
+        console.log("PDF generated and downloaded successfully");
       } else {
-        console.error("Error saving feedback");
+        console.error("Error saving feedback - result not successful:", result);
       }
     } catch (error) {
-      console.error("Error generating report", error);
+      console.error("Error generating report:", error);
+      alert("Failed to generate PDF report. Check console for details.");
     } finally {
       setIsGeneratingReport(false);
     }
@@ -361,12 +377,16 @@ const Agent = ({
   }, [stream, viewMode]);
 
   const handleDisconnect = async () => {
+    console.log("handleDisconnect called, type:", type, "messages:", messages.length);
     setCallStatus(CallStatus.FINISHED);
     vapi.stop();
     
     // Auto-generate feedback and PDF for interview type
     if (type === "interview" && messages.length > 0) {
+      console.log("Triggering automatic PDF generation...");
       await handleGenerateFeedback();
+    } else {
+      console.log("Skipping PDF generation - type:", type, "messages:", messages.length);
     }
   };
 
