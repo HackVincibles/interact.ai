@@ -109,6 +109,14 @@ const Feedback = async ({ params }: RouteParams) => {
           </Link>
         </Button>
 
+        <Button className="btn-primary flex-1 bg-green-600 hover:bg-green-700">
+          <Link href="/matches" className="flex w-full justify-center">
+            <p className="text-sm font-semibold text-white text-center">
+              Apply for Jobs
+            </p>
+          </Link>
+        </Button>
+
         <Button className="btn-primary flex-1">
           <Link
             href={`/interview/${id}`}
