@@ -5,6 +5,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 import { vapi } from "@/lib/vapi.sdk";
 import { interviewer } from "@/constants";
 import { createFeedback } from "@/lib/actions/general.action";
@@ -390,6 +391,36 @@ const Agent = ({
     }
   };
 
+  // Handle code sharing from CodeEditor to AI
+  const handleShareCodeWithAI = (code: string, language: string) => {
+    console.log("Sharing code with AI:", { language, codeLength: code.length });
+
+    // Add code to messages
+    const codeMessage = `[CODE SHARED BY USER]\n\nLanguage: ${language}\n\n\`\`\`${language}\n${code}\n\`\`\``;
+    setMessages((prev) => [...prev, { role: "user", content: codeMessage }]);
+
+    // Send code to VAPI AI as a message
+    if (vapi && callStatus === CallStatus.ACTIVE) {
+      try {
+        // Send the code as a message to the AI
+        vapi.send({
+          type: "add-message",
+          message: {
+            role: "user",
+            content: `I've shared my code with you. Please review this ${language} code and ask me questions about it:\n\n\`\`\`${language}\n${code}\n\`\`\``,
+          },
+        });
+        console.log("Code sent to AI successfully");
+      } catch (error) {
+        console.error("Error sending code to AI:", error);
+      }
+    }
+
+    // Keep the editor open so user can continue coding
+    // Show a toast or notification that code was shared
+    console.log("Code shared successfully - editor remains open");
+  };
+
   // Render small card for top bar
   const renderSmallCard = (
     mode: ViewMode,
@@ -463,7 +494,10 @@ const Agent = ({
           // Code Editor View
           <div className="flex justify-center h-full">
             <div className="w-full max-w-3xl h-full">
-              <CodeEditor onClose={() => setMainViewMode("interview")} />
+              <CodeEditor 
+                onClose={() => setMainViewMode("interview")} 
+                onShareWithAI={handleShareCodeWithAI}
+              />
             </div>
           </div>
         ) : (

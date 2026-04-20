@@ -7,6 +7,7 @@ import { executeCode, checkServerHealth } from "@/lib/services/judge0";
 
 interface CodeEditorProps {
   onClose: () => void;
+  onShareWithAI?: (code: string, language: string) => void;
 }
 
 const languages = [
@@ -118,7 +119,7 @@ func solution() {
 print(solution())`,
 };
 
-const CodeEditor = ({ onClose }: CodeEditorProps) => {
+const CodeEditor = ({ onClose, onShareWithAI }: CodeEditorProps) => {
   const [language, setLanguage] = useState("javascript");
   const [code, setCode] = useState(defaultCode["javascript"]);
   const [theme, setTheme] = useState<"vs-dark" | "vs-light">("vs-dark");
@@ -302,6 +303,19 @@ const CodeEditor = ({ onClose }: CodeEditorProps) => {
             )}
             Run
           </button>
+
+          {/* Share with AI Button */}
+          {onShareWithAI && (
+            <button
+              onClick={() => onShareWithAI(code, language)}
+              className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg transition-colors"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+              </svg>
+              Share with AI
+            </button>
+          )}
 
           {/* Close Button */}
           <button
