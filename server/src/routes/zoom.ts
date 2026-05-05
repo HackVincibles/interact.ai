@@ -1,6 +1,6 @@
 import { Router } from "express";
 import axios from "axios";
-import crypto from "crypto";
+import { generateSignature } from "../services/zoomService";
 
 const router = Router();
 
@@ -34,7 +34,7 @@ const getZoomAccessToken = async (): Promise<string> => {
     const authString = Buffer.from(`${ZOOM_CLIENT_ID}:${ZOOM_CLIENT_SECRET}`).toString("base64");
     
     const response = await axios.post(
-      "https://zoom.us/oauth/token",
+      "https://api.zoom.us/oauth/token",
       new URLSearchParams({
         grant_type: "account_credentials",
         account_id: ZOOM_ACCOUNT_ID,
@@ -107,7 +107,7 @@ router.post("/create-meeting", async (req, res) => {
     
     const meetingData = {
       topic,
-      type: 1, // Instant meeting - starts immediately, no host required
+      type: 2, // Scheduled meeting - better compatibility with Embedded SDK
       duration: duration || 30,
       timezone: "UTC",
       password: password || Math.random().toString(36).substring(2, 8),
@@ -247,15 +247,15 @@ router.post("/signature", (req, res) => {
       });
     }
 
-    // Generate signature
-    const timestamp = new Date().getTime() - 30000;
-    const msg = Buffer.from(`${ZOOM_CLIENT_ID}${meetingNumber}${timestamp}${role}`).toString("base64");
-    const hash = crypto.createHmac("sha256", ZOOM_CLIENT_SECRET).update(msg).digest("base64");
-    const signature = Buffer.from(`${ZOOM_CLIENT_ID}.${meetingNumber}.${timestamp}.${role}.${hash}`).toString("base64");
+    // Generate signature using the professional service
+    console.log(`🔐 Generating signature for Meeting: ${meetingNumber}, Role: ${role || 0}`);
+    const signature = generateSignature(meetingNumber.toString(), parseInt(role || 0));
+    console.log(`✅ Signature generated: ${signature.substring(0, 20)}...`);
 
     return res.status(200).json({
       success: true,
       signature,
+      sdkKey: ZOOM_CLIENT_ID
     });
 
   } catch (error) {
