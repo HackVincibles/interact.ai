@@ -2,8 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { useDropzone } from "react-dropzone";
-import { storage } from "@/firebase/client";
-import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
+import axios from "axios";
 import { FileUp, FileText, X, CheckCircle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "./ui/button";
@@ -25,39 +24,44 @@ export default function ResumeUpload({
 
   const onDrop = useCallback(
     async (acceptedFiles: File[]) => {
-      const file = acceptedFiles[0];
-      if (!file) return;
+      const actualFile = acceptedFiles[0];
+      if (!actualFile) return;
 
-      if (file.type !== "application/pdf") {
+      if (actualFile.type !== "application/pdf") {
         toast.error("Please upload a PDF file.");
         return;
       }
 
       setIsUploading(true);
-      setFileName(file.name);
+      setFileName(actualFile.name);
 
-      const storageRef = ref(storage, `resumes/${userId}/${file.name}`);
-      const uploadTask = uploadBytesResumable(storageRef, file);
+      const formData = new FormData();
+      formData.append("resume", actualFile);
+      formData.append("userId", userId);
 
-      uploadTask.on(
-        "state_changed",
-        (snapshot) => {
-          const progress =
-            (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-          setProgress(progress);
-        },
-        (error) => {
-          console.error("Upload failed:", error);
-          toast.error("Upload failed. Please try again.");
-          setIsUploading(false);
-        },
-        async () => {
-          const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-          onUploadComplete(downloadURL, file.name);
+      try {
+        const API_URL = process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:5000/api';
+        const response = await axios.post(`${API_URL}/upload/resume`, formData, {
+          onUploadProgress: (progressEvent) => {
+            const percentCompleted = Math.round(
+              (progressEvent.loaded * 100) / (progressEvent.total || actualFile.size)
+            );
+            setProgress(percentCompleted);
+          },
+        });
+
+        if (response.data.success) {
+          onUploadComplete(response.data.url, actualFile.name);
           toast.success("Resume uploaded successfully!");
-          setIsUploading(false);
+        } else {
+          throw new Error(response.data.message || "Upload failed");
         }
-      );
+      } catch (error: any) {
+        console.error("Upload failed:", error);
+        toast.error(error.message || "Upload failed. Please try again.");
+      } finally {
+        setIsUploading(false);
+      }
     },
     [userId, onUploadComplete]
   );
@@ -116,7 +120,7 @@ export default function ResumeUpload({
             <span className="text-sm font-medium truncate max-w-[200px] sm:max-w-xs px-2">
               {fileName}
             </span>
-            <CheckCircle className="h-4 w-4 text-success-100" />
+            <CheckCircle className="h-4 w-4 text-green-500" />
           </div>
           <Button
             variant="ghost"

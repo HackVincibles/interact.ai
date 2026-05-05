@@ -8,7 +8,7 @@ const Layout = async ({ children }: { children: ReactNode }) => {
   if (!isUserAuthenticated) redirect("/landing");
 
   return (
-    <div className="flex h-screen bg-dark-400 overflow-hidden">
+    <div className="flex h-[calc(100vh-56px)] bg-dark-400 overflow-hidden">
       {/* Sidebar - Fixed on the left */}
       <Sidebar />
 

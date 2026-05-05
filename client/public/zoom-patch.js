@@ -157,16 +157,14 @@
     
     // Protect the hook from future overrides
     try {
+      const currentHook = window.__REACT_DEVTOOLS_GLOBAL_HOOK__;
       Object.defineProperty(window, '__REACT_DEVTOOLS_GLOBAL_HOOK__', {
         get: function() {
-          return window.__REACT_DEVTOOLS_GLOBAL_HOOK__;
+          return currentHook;
         },
         set: function(value) {
-          if (value && value.ReactCurrentOwner) {
-            console.log('🛡️ GLOBAL Preventing override of React devtools hook');
-            return; // Don't allow override
-          }
-          window.__REACT_DEVTOOLS_GLOBAL_HOOK__ = value;
+          console.log('🛡️ GLOBAL Preventing override of React devtools hook');
+          return; // Don't allow override
         },
         configurable: false, // Make it non-configurable
         enumerable: false

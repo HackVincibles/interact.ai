@@ -1,7 +1,6 @@
 import { generateText } from "ai";
 import { google } from "@ai-sdk/google";
-
-import { db } from "@/firebase/admin";
+import connectToDatabase from "@/lib/mongodb";
 import { getRandomInterviewCover } from "@/lib/utils";
 
 export async function POST(request: Request) {
@@ -67,7 +66,9 @@ export async function POST(request: Request) {
       createdAt: new Date().toISOString(),
     };
 
-    await db.collection("interviews").add(interview);
+    const mongoose = await connectToDatabase();
+    const db = mongoose.connection.db;
+    await db.collection("interviews").insertOne(interview);
 
     return Response.json({ success: true }, { status: 200 });
   } catch (error) {

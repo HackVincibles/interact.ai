@@ -11,8 +11,8 @@ interface ClientHeaderWrapperProps {
 export default function ClientHeaderWrapper({ initialUser }: ClientHeaderWrapperProps) {
   const pathname = usePathname();
   
-  // Don't render the header on the landing page since it has its own navbar
-  if (pathname === "/landing") {
+  // Don't render the header on the landing page or zoom session
+  if (pathname === "/landing" || pathname.startsWith("/zoom-session")) {
     return null;
   }
   

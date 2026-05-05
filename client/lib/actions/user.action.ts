@@ -1,47 +1,89 @@
 "use server";
 
-import { db } from "@/firebase/admin";
+import apiClient from "../api-client";
 import { revalidatePath } from "next/cache";
 
-export interface UpdateUserProfileParams {
-  userId: string;
-  name?: string;
-  resumeURL?: string;
-  resumeName?: string;
-  bio?: string;
-  linkedIn?: string;
-  github?: string;
-  skills?: string[];
+export async function updateProfile(data: any) {
+  try {
+    const response = await apiClient.put("/users/profile", data);
+    revalidatePath("/profile");
+    return response.data;
+  } catch (error: any) {
+    return { success: false, message: error.response?.data?.message || "Update failed" };
+  }
 }
 
-export async function updateUserProfile(params: UpdateUserProfileParams) {
-  const { userId, name, resumeURL, resumeName, bio, linkedIn, github, skills } = params;
-
+export async function updateAvatar(formData: FormData) {
   try {
-    const updateData: Partial<UpdateUserProfileParams> = {};
-    if (name) updateData.name = name;
-    if (resumeURL) updateData.resumeURL = resumeURL;
-    if (resumeName) updateData.resumeName = resumeName;
-    if (bio !== undefined) updateData.bio = bio;
-    if (linkedIn !== undefined) updateData.linkedIn = linkedIn;
-    if (github !== undefined) updateData.github = github;
-    if (skills !== undefined) updateData.skills = skills;
-
-    await db.collection("users").doc(userId).update(updateData);
-
+    const response = await apiClient.put("/users/avatar", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
     revalidatePath("/profile");
-    revalidatePath("/");
+    return response.data;
+  } catch (error: any) {
+    return { success: false, message: error.response?.data?.message || "Upload failed" };
+  }
+}
 
-    return {
-      success: true,
-      message: "Profile updated successfully.",
-    };
-  } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
-    console.error("Error updating user profile:", errorMessage);
-    return {
-      success: false,
-      message: "Failed to update profile. Please try again.",
-    };
+export async function deleteAvatar() {
+  try {
+    const response = await apiClient.delete("/users/avatar");
+    revalidatePath("/profile");
+    return response.data;
+  } catch (error: any) {
+    return { success: false, message: error.response?.data?.message || "Delete failed" };
+  }
+}
+
+export async function updateResume(formData: FormData) {
+  try {
+    const response = await apiClient.put("/users/resume", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
+    revalidatePath("/profile");
+    return response.data;
+  } catch (error: any) {
+    return { success: false, message: error.response?.data?.message || "Resume upload failed" };
+  }
+}
+
+export async function triggerForgotPassword(email: string) {
+  try {
+    const response = await apiClient.post("/auth/forgotpassword", { email });
+    return response.data;
+  } catch (error: any) {
+    return { success: false, message: error.response?.data?.message || "Failed to send reset link" };
+  }
+}
+
+export async function deleteResume() {
+  try {
+    const response = await apiClient.delete("/users/resume");
+    revalidatePath("/profile");
+    return response.data;
+  } catch (error: any) {
+    return { success: false, message: error.response?.data?.message || "Delete failed" };
+  }
+}
+
+export async function requestDeleteOTP() {
+  try {
+    const response = await apiClient.post("/users/request-delete");
+    return response.data;
+  } catch (error: any) {
+    return { success: false, message: error.response?.data?.message || "Failed to send deletion OTP" };
+  }
+}
+
+export async function confirmDeleteAccount(otp: string) {
+  try {
+    const response = await apiClient.post("/users/confirm-delete", { otp });
+    return response.data;
+  } catch (error: any) {
+    return { success: false, message: error.response?.data?.message || "Account deletion failed" };
   }
 }

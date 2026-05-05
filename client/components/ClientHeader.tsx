@@ -39,42 +39,6 @@ export default function ClientHeader({ initialUser }: ClientHeaderProps) {
             <span className="text-lg font-semibold text-foreground">InteractAI</span>
           </Link>
 
-          {/* Navigation - All redirect to actual pages */}
-          <nav className="flex items-center gap-1 sm:gap-2">
-            <NavButton
-              href="/"
-              icon={<Home className="h-4 w-4" />}
-              label="Home"
-              isActive={isActive("/")}
-              isLoading={loadingPath === "/"}
-              onClick={() => handleNavClick("/")}
-            />
-            <NavButton
-              href="/interview"
-              icon={<Mic className="h-4 w-4" />}
-              label="Interview"
-              isActive={isActive("/interview")}
-              isLoading={loadingPath === "/interview"}
-              onClick={() => handleNavClick("/interview")}
-            />
-            <NavButton
-              href="/code-editor"
-              icon={<Code className="h-4 w-4" />}
-              label="Code Editor"
-              isActive={isActive("/code-editor")}
-              isLoading={loadingPath === "/code-editor"}
-              onClick={() => handleNavClick("/code-editor")}
-            />
-            <NavButton
-              href="/gd"
-              icon={<Users className="h-4 w-4" />}
-              label="Group Discussion"
-              isActive={isActive("/gd")}
-              isLoading={loadingPath === "/gd"}
-              onClick={() => handleNavClick("/gd")}
-            />
-          </nav>
-
           {/* Right Side */}
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             <ThemeToggle />

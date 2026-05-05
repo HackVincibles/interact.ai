@@ -36,6 +36,7 @@ export interface User {
   name: string;
   email: string;
   id: string;
+  avatar?: string;
   resumeURL?: string;
   resumeName?: string;
   bio?: string;

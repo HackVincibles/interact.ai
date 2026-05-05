@@ -48,11 +48,9 @@ export default async function RootLayout({
           }}
         />
       </head>
-      <body className={`${monaSans.className} antialiased pattern`}>
+      <body className={`${monaSans.className} antialiased`}>
         <ClientHeaderWrapper initialUser={user} />
-        <main className="min-h-screen">
-          {children}
-        </main>
+        {children}
         <Toaster />
       </body>
     </html>
