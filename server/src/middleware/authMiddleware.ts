@@ -9,8 +9,8 @@ export interface AuthRequest extends Request {
 export const protect = async (req: AuthRequest, res: Response, next: NextFunction) => {
   let token;
 
-  if (req.cookies.token) {
-    token = req.cookies.token;
+  if (req.cookies.session) {
+    token = req.cookies.session;
   } else if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
     token = req.headers.authorization.split(' ')[1];
   }

@@ -66,56 +66,39 @@ const Agent = ({
 
   // Anti-cheating: Handle tab visibility and beforeunload - ONLY during active call
   useEffect(() => {
-    console.log("Anti-cheating effect running, callStatus:", callStatus);
-    
     // Only apply restrictions when call is ACTIVE
     if (callStatus !== CallStatus.ACTIVE) {
-      console.log("Call not active, skipping lock");
-      // Exit fullscreen if call is not active
       if (document.fullscreenElement) {
         document.exitFullscreen().catch(() => {});
       }
       return;
     }
 
-    console.log("CALL IS ACTIVE - Applying tab lock restrictions");
-
-    // Call is ACTIVE - apply all restrictions
     const handleVisibilityChange = () => {
-      console.log("Visibility changed, hidden:", document.hidden);
       if (document.hidden) {
-        console.log("Tab hidden - showing warning");
         setTabWarning(true);
         setCheatingCount(prev => prev + 1);
-        // Try to force focus back
         setTimeout(() => window.focus(), 100);
       }
     };
 
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      console.log("Before unload triggered");
       e.preventDefault();
       e.returnValue = "Interview in progress. Are you sure you want to leave?";
       return e.returnValue;
     };
 
-    // Check focus periodically
     const focusCheckInterval = setInterval(() => {
       if (!document.hasFocus() && document.hidden) {
-        console.log("Focus check: window not focused and hidden");
         setTabWarning(true);
         setCheatingCount(prev => prev + 1);
       }
     }, 500);
 
-    // Add all event listeners
     document.addEventListener("visibilitychange", handleVisibilityChange);
     window.addEventListener("beforeunload", handleBeforeUnload);
     
-    console.log("Event listeners added");
-
     return () => {
-      console.log("Cleaning up anti-cheating listeners");
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.removeEventListener("beforeunload", handleBeforeUnload);
       clearInterval(focusCheckInterval);
@@ -123,46 +106,30 @@ const Agent = ({
   }, [callStatus]);
 
   useEffect(() => {
-    const onCallStart = () => {
-      setCallStatus(CallStatus.ACTIVE);
-    };
+    const onCallStart = () => setCallStatus(CallStatus.ACTIVE);
+    const onCallEnd = () => setCallStatus(CallStatus.FINISHED);
 
-    const onCallEnd = () => {
-      setCallStatus(CallStatus.FINISHED);
-    };
-
-    const onMessage = (message: Message) => {
+    const onMessage = (message: any) => {
       if (message.type === "transcript" && message.transcriptType === "final") {
-        const newMessage = { role: message.role, content: message.transcript };
-        setMessages((prev) => [...prev, newMessage]);
+        setMessages((prev) => [...prev, { role: message.role, content: message.transcript }]);
       }
     };
 
     const onSpeechStart = () => {
-      console.log("AI speech start");
       setIsSpeaking(true);
       setIsUserSpeaking(false);
     };
 
-    const onSpeechEnd = () => {
-      console.log("AI speech end");
-      setIsSpeaking(false);
-    };
+    const onSpeechEnd = () => setIsSpeaking(false);
 
     const onUserSpeechStart = () => {
-      console.log("User speech start");
       setIsUserSpeaking(true);
       setIsSpeaking(false);
     };
 
-    const onUserSpeechEnd = () => {
-      console.log("User speech end");
-      setIsUserSpeaking(false);
-    };
+    const onUserSpeechEnd = () => setIsUserSpeaking(false);
 
-    const onError = (error: Error) => {
-      console.log("Error:", error);
-    };
+    const onError = (error: Error) => console.error("Vapi Error:", error);
 
     vapi.on("call-start", onCallStart);
     vapi.on("call-end", onCallEnd);
@@ -378,17 +345,8 @@ const Agent = ({
   }, [stream, viewMode]);
 
   const handleDisconnect = async () => {
-    console.log("handleDisconnect called, type:", type, "messages:", messages.length);
     setCallStatus(CallStatus.FINISHED);
     vapi.stop();
-    
-    // Auto-generate feedback and PDF for interview type
-    if (type === "interview" && messages.length > 0) {
-      console.log("Triggering automatic PDF generation...");
-      await handleGenerateFeedback();
-    } else {
-      console.log("Skipping PDF generation - type:", type, "messages:", messages.length);
-    }
   };
 
   // Handle code sharing from CodeEditor to AI

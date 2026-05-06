@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { User } from "@/types";
 import { LogOut, Loader2 } from "lucide-react";
+import { signOut as signOutAction } from "@/lib/actions/auth.action";
 
 interface UserProfileProps {
   user: User | null;
@@ -18,9 +19,8 @@ const UserProfile = ({ user }: UserProfileProps) => {
   const handleLogout = async () => {
     setIsLoading(true);
     try {
-      // In professional mode, we call our server action or API
-      const response = await fetch("/api/auth/logout");
-      if (response.ok) {
+      const res = await signOutAction();
+      if (res.success) {
         window.location.href = "/";
       }
     } catch (error) {
@@ -44,6 +44,7 @@ const UserProfile = ({ user }: UserProfileProps) => {
             src={user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.name}`}
             alt={user.name || "User"}
             fill
+            sizes="(max-width: 768px) 100vw, 36px"
             className="object-cover"
           />
         </div>

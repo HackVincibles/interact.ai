@@ -16,13 +16,14 @@ import {
   ChevronRight
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import GDSetupModal from "./GDSetupModal";
+
 
 const sidebarLinks = [
   { label: "Dashboard", href: "/", icon: LayoutDashboard },
   { label: "AI Interview", href: "/interview", icon: Mic },
   { label: "Try Code", href: "/code-editor", icon: Code },
-  { label: "Group Discussion", href: "/gd", icon: Users, modal: true },
+  { label: "Group Discussion", href: "/gd", icon: Users, modal: false },
+
   { label: "Prep Resources", href: "https://aveshpathaklms.vercel.app/dashboard", icon: GraduationCap, external: true },
   { label: "Job Matches", href: "/matches", icon: Target },
   { label: "Leaderboard", href: "/leaderboard", icon: Trophy },
@@ -77,9 +78,9 @@ export default function Sidebar() {
 
             const handleClick = (e: React.MouseEvent) => {
               if (link.modal && link.label === "Group Discussion") {
-                e.preventDefault();
-                setShowGDModal(true);
+                // Modal removed in Master Rebuild
               }
+
             };
 
             const content = (
@@ -141,7 +142,8 @@ export default function Sidebar() {
       </aside>
 
       {/* Global Modals */}
-      {showGDModal && <GDSetupModal onClose={() => setShowGDModal(false)} />}
+      {/* GD Modal removed in Master Rebuild */}
+
     </>
   );
 }

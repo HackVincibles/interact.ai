@@ -3,41 +3,78 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Mic, Code, Users, ArrowRight, GraduationCap, Heart, Trophy, BarChart3, Star, TrendingUp, Zap, Calendar, Target, Award } from "lucide-react";
+import { Mic, Code, Users, ArrowRight, GraduationCap, Heart, Trophy, BarChart3, Star, TrendingUp, Zap, Calendar, Target, Award, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import UserProfile from "@/components/UserProfile";
 import CodePracticeEditor from "@/components/CodePracticeEditor";
-import GDSetupModal from "@/components/GDSetupModal";
+
 import EnhancedCard from "@/components/EnhancedCard";
 import ReadinessScore from "@/components/ReadinessScore";
 import AnalyticsSection from "@/components/AnalyticsSection";
 import JobMatchSection from "@/components/JobMatchSection";
 import LeaderboardSection from "@/components/LeaderboardSection";
+import OnboardingWizard from "@/components/OnboardingWizard";
 
 import { getCurrentUser } from "@/lib/actions/auth.action";
+import { getDashboardStats, getLeaderboard } from "@/lib/actions/stats.action";
 import { User } from "@/types";
 
 function Home() {
   const router = useRouter();
   const [showCodeEditor, setShowCodeEditor] = useState(false);
   const [user, setUser] = useState<User | null>(null);
+  const [stats, setStats] = useState<any>(null);
+  const [leaderboard, setLeaderboard] = useState<any>(null);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
+  
   const [isLoading, setIsLoading] = useState(false);
   const [isCodeLoading, setIsCodeLoading] = useState(false);
-  const [showGDModal, setShowGDModal] = useState(false);
   const [isGDLoading, setIsGDLoading] = useState(false);
+
 
   const [greeting, setGreeting] = useState("Welcome back");
 
-  // Load user on mount
+  const fetchData = async () => {
+    try {
+      const [userData, statsData, leaderboardData] = await Promise.all([
+        getCurrentUser(),
+        getDashboardStats(),
+        getLeaderboard(3)
+      ]);
+      
+      setUser(userData);
+      setStats(statsData);
+      setLeaderboard(leaderboardData?.leaderboard || []);
+    } catch (error) {
+      console.error("Failed to fetch dashboard data", error);
+    } finally {
+      setIsInitialLoading(false);
+    }
+  };
+
   useEffect(() => {
-    getCurrentUser().then(setUser);
+    fetchData();
     
     const hour = new Date().getHours();
     if (hour < 12) setGreeting("Good morning");
     else if (hour < 18) setGreeting("Good afternoon");
     else setGreeting("Good evening");
   }, []);
+
+  if (isInitialLoading) {
+    return (
+      <div className="h-[80vh] flex flex-col items-center justify-center gap-4">
+        <Loader2 className="w-10 h-10 text-primary animate-spin" />
+        <p className="text-muted-foreground font-bold animate-pulse uppercase tracking-[0.2em] text-xs">Initializing Neural Link...</p>
+      </div>
+    );
+  }
+
+  // Show onboarding if not completed
+  if (user && !stats?.user?.onboardingCompleted) {
+    return <OnboardingWizard onComplete={fetchData} />;
+  }
 
   if (showCodeEditor) {
     return (
@@ -63,31 +100,40 @@ function Home() {
             {greeting}, <span className="text-primary">{user?.name?.split(" ")[0] || "Candidate"}</span>! 👋
           </h1>
           <p className="text-muted-foreground text-sm font-medium">
-            You're 3 sessions away from your weekly goal. Keep the momentum!
+            {stats?.user?.sessionsRemaining > 0 
+              ? `You're ${stats.user.sessionsRemaining} sessions away from your weekly goal. Keep the momentum!`
+              : `You've crushed your weekly goal! Amazing work.`}
           </p>
         </div>
 
         {/* Smart Resume Practice Card */}
-        <div className="w-full lg:max-w-md group">
-          <div className="glass-card p-4 border-l-4 border-l-primary relative overflow-hidden flex items-center gap-4 transition-all hover:translate-x-1">
-            <div className="absolute top-0 right-0 p-2 opacity-10 group-hover:rotate-12 transition-transform">
-              <Mic className="w-12 h-12" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-[10px] font-bold bg-primary/20 text-primary px-2 py-0.5 rounded">LAST SESSION</span>
-                <span className="text-[10px] text-muted-foreground">2 hours ago</span>
+        {stats?.lastSession && (
+          <div className="w-full lg:max-w-md group">
+            <div className="glass-card p-4 border-l-4 border-l-primary relative overflow-hidden flex items-center gap-4 transition-all hover:translate-x-1">
+              <div className="absolute top-0 right-0 p-2 opacity-10 group-hover:rotate-12 transition-transform">
+                <Mic className="w-12 h-12" />
               </div>
-              <h3 className="font-bold text-sm truncate">Behavioral Interview: Leadership Role</h3>
-              <p className="text-[10px] text-muted-foreground">Progress: 85% Complete</p>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-[10px] font-bold bg-primary/20 text-primary px-2 py-0.5 rounded uppercase">RESUME PREP</span>
+                  {/* Using stats.lastSession.createdAt if available, otherwise just generic */}
+                  <span className="text-[10px] text-muted-foreground">Last session recorded</span>
+                </div>
+                <h3 className="font-bold text-sm truncate uppercase tracking-tight">
+                  {stats.lastSession.type === 'interview' ? 'Mock Interview' : stats.lastSession.type} - {stats.lastSession.role || 'General'}
+                </h3>
+                <p className="text-[10px] text-muted-foreground uppercase font-black">
+                   {stats.lastSession.feedback ? `Score: ${stats.lastSession.feedback.totalScore}%` : 'Feedback pending'}
+                </p>
+              </div>
+              <Link href="/interview">
+                <Button size="sm" className="h-8 rounded-lg px-4 font-bold text-[10px] uppercase tracking-widest italic translate-z-0">
+                  Continue
+                </Button>
+              </Link>
             </div>
-            <Link href="/interview">
-              <Button size="sm" className="h-8 rounded-lg px-4 font-bold text-[10px] uppercase tracking-widest italic translate-z-0">
-                Resume
-              </Button>
-            </Link>
           </div>
-        </div>
+        )}
       </div>
 
       {/* 🚀 Priority Action Center (The Big 4) */}
@@ -113,7 +159,7 @@ function Home() {
                 disabled={isLoading}
                 className="mt-auto w-full btn-glass text-xs"
               >
-                {isLoading ? <span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" /> : <ArrowRight className="w-3 h-3 mr-2" />}
+                {isLoading ? <Loader2 className="w-3 h-3 animate-spin mr-2" /> : <ArrowRight className="w-3 h-3 mr-2" />}
                 Practice Now
               </Button>
             </div>
@@ -137,7 +183,7 @@ function Home() {
                 disabled={isCodeLoading}
                 className="mt-auto w-full btn-glass text-xs"
               >
-                {isCodeLoading ? <span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" /> : <ArrowRight className="w-3 h-3 mr-2" />}
+                {isCodeLoading ? <Loader2 className="w-3 h-3 animate-spin mr-2" /> : <ArrowRight className="w-3 h-3 mr-2" />}
                 Boot Editor
               </Button>
             </div>
@@ -156,13 +202,14 @@ function Home() {
               <Button
                 onClick={() => {
                   setIsGDLoading(true);
-                  setTimeout(() => { setShowGDModal(true); setIsGDLoading(false); }, 500);
+                  router.push("/gd");
                 }}
                 disabled={isGDLoading}
                 className="mt-auto w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:opacity-90 text-xs font-bold"
               >
-                {isGDLoading ? <span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" /> : <ArrowRight className="w-3 h-3 mr-2" />}
-                Join Session
+                {isGDLoading ? <Loader2 className="w-3 h-3 animate-spin mr-2" /> : <ArrowRight className="w-3 h-3 mr-2" />}
+                Enter GD Mode
+
               </Button>
             </div>
           </EnhancedCard>
@@ -193,20 +240,38 @@ function Home() {
 
       {/* 📊 Performance Snapshots Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 pt-4">
-        <ReadinessScore score={75} />
-        <AnalyticsSection />
+        <ReadinessScore 
+          score={stats?.user?.readinessScore ?? 0} 
+          streak={stats?.user?.streak ?? 0}
+          level={stats?.user?.level ?? 1}
+          xp={stats?.user?.xp ?? 0}
+          totalInterviews={stats?.user?.totalInterviews ?? 0}
+        />
+        <AnalyticsSection 
+          stats={{
+            avgScore: stats?.avgScore ?? 0,
+            totalSessions: stats?.totalSessions ?? 0,
+            activityLog: stats?.user?.activityLog ?? [],
+            categoryScores: stats?.recentFeedbacks?.[0]?.categoryScores
+          }} 
+        />
       </div>
 
       {/* 🧩 Discovery & Insights Row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 pt-4">
         {/* Job Match Preview */}
         <div className="lg:col-span-1">
-          <JobMatchSection isPreview={true} showTitle={true} />
+          <JobMatchSection 
+            isPreview={true} 
+            showTitle={true} 
+            targetRole={stats?.user?.targetRole}
+            targetCompanies={stats?.user?.targetCompanies}
+          />
         </div>
 
         {/* Global Leaderboard Preview */}
         <div className="lg:col-span-2 space-y-8">
-          <LeaderboardSection isPreview={true} />
+          <LeaderboardSection isPreview={true} data={leaderboard} />
           
           {/* Quick Boost Card */}
           <div className="p-6 rounded-2xl bg-gradient-to-br from-primary/10 to-transparent border border-primary/10 relative overflow-hidden group">
@@ -221,7 +286,7 @@ function Home() {
               <span className="text-[10px] font-black px-2 py-0.5 rounded bg-primary text-black">+5% XP</span>
             </div>
             <p className="text-sm text-muted-foreground mb-6 max-w-sm">
-              Complete a behavioral session today to boost your Readiness Score by +5%.
+              Complete a {stats?.user?.targetRole || 'Software Engineer'} behavioral session today to boost your Readiness Score by +5%.
             </p>
             <Link href="/interview">
               <button className="px-6 py-2.5 bg-white text-black font-black rounded-xl text-xs hover:bg-primary transition-all uppercase tracking-widest italic">
@@ -242,8 +307,7 @@ function Home() {
         </div>
       </footer>
 
-      {/* GD Setup Modal */}
-      {showGDModal && <GDSetupModal onClose={() => setShowGDModal(false)} />}
+
     </div>
   );
 }

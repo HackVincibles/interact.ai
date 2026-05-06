@@ -21,32 +21,6 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  webpack: (config, { isServer }) => {
-    // Exclude @zoom/meetingsdk from webpack bundle - loaded dynamically via CDN in iframe
-    config.externals = [...(config.externals || []), '@zoom/meetingsdk'];
-    return config;
-  },
-  async headers() {
-    return [
-      {
-        source: '/(.*)',
-        headers: [
-          {
-            key: 'Cross-Origin-Embedder-Policy',
-            value: 'require-corp',
-          },
-          {
-            key: 'Cross-Origin-Opener-Policy',
-            value: 'same-origin',
-          },
-          {
-            key: 'Cross-Origin-Resource-Policy',
-            value: 'cross-origin',
-          }
-        ],
-      },
-    ];
-  },
   eslint: {
     ignoreDuringBuilds: true,
   },

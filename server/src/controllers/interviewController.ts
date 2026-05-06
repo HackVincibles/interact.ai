@@ -4,6 +4,7 @@ import { google } from "@ai-sdk/google";
 import { z } from 'zod';
 import Interview from '../models/Interview';
 import Feedback from '../models/Feedback';
+import { recordActivity, XP_REWARDS } from '../utils/gamification';
 
 const feedbackSchema = z.object({
   totalScore: z.number(),
@@ -23,12 +24,16 @@ export const createFeedback = async (req: any, res: Response) => {
   const { interviewId, userId, transcript, feedbackId } = req.body;
 
   try {
+    if (!Array.isArray(transcript)) {
+      return res.status(400).json({ success: false, message: 'transcript must be an array' });
+    }
+
     const formattedTranscript = transcript
       .map((sentence: any) => `- ${sentence.role}: ${sentence.content}\n`)
       .join("");
 
     const { object } = await generateObject({
-      model: google("gemini-2.0-flash-001"),
+      model: google("gemini-1.5-flash"),
       schema: feedbackSchema,
       prompt: `
         Analyze this mock interview. Score from 0 to 100.
@@ -50,8 +55,26 @@ export const createFeedback = async (req: any, res: Response) => {
       feedback = await Feedback.create(feedbackData);
     }
 
+    // Award XP and update gamification stats
+    try {
+      const recentFeedbacks = await Feedback.find({ userId }).sort({ createdAt: -1 }).limit(5);
+      const recentScores = recentFeedbacks.map((f: any) => f.totalScore || 0);
+      const xpGain =
+        XP_REWARDS.INTERVIEW_COMPLETED +
+        (object.totalScore >= 90 ? XP_REWARDS.PERFECT_SCORE : 0);
+      await recordActivity(userId, 'interview', xpGain, recentScores);
+    } catch (xpErr) {
+      console.warn('XP update failed (non-critical):', xpErr);
+    }
+
     res.status(200).json({ success: true, data: feedback });
   } catch (error: any) {
+    if (error.statusCode === 429) {
+      return res.status(429).json({ 
+        success: false, 
+        message: 'AI quota exceeded. Please wait a moment and try again.' 
+      });
+    }
     res.status(500).json({ success: false, message: error.message });
   }
 };

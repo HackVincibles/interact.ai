@@ -4,6 +4,9 @@ import { useState, useEffect } from "react";
 import Editor from "@monaco-editor/react";
 import { editor } from "monaco-editor";
 import { executeCode, checkServerHealth } from "@/lib/services/judge0";
+import { reviewCode } from "@/lib/actions/stats.action";
+import { Loader2, Sparkles, AlertCircle, CheckCircle2, ChevronRight, X } from "lucide-react";
+import { toast } from "sonner";
 
 interface CodePracticeEditorProps {
   onClose: () => void;
@@ -25,97 +28,18 @@ const languages = [
 ];
 
 const defaultCode: Record<string, string> = {
-  javascript: `// JavaScript code here
-function solution() {
-  // Write your code here
-  
-}
-
-console.log(solution());`,
-  typescript: `// TypeScript code here
-function solution(): void {
-  // Write your code here
-  
-}
-
-console.log(solution());`,
-  python: `# Python code here
-def solution():
-    # Write your code here
-    pass
-
-print(solution())`,
-  java: `// Java code here
-public class Solution {
-    public static void main(String[] args) {
-        // Write your code here
-        
-    }
-}`,
-  cpp: `// C++ code here
-#include <iostream>
-using namespace std;
-
-int main() {
-    // Write your code here
-    
-    return 0;
-}`,
-  c: `// C code here
-#include <stdio.h>
-
-int main() {
-    // Write your code here
-    
-    return 0;
-}`,
-  csharp: `// C# code here
-using System;
-
-class Solution {
-    static void Main() {
-        // Write your code here
-        
-    }
-}`,
-  go: `// Go code here
-package main
-
-import "fmt"
-
-func main() {
-    // Write your code here
-    
-}`,
-  rust: `// Rust code here
-fn main() {
-    // Write your code here
-    
-}`,
-  php: `<?php
-// PHP code here
-function solution() {
-    // Write your code here
-    
-}
-
-echo solution();`,
-  ruby: `# Ruby code here
-def solution
-  # Write your code here
-  
-end
-
-puts solution`,
-  swift: `// Swift code here
-import Foundation
-
-func solution() {
-    // Write your code here
-    
-}
-
-print(solution())`,
+  javascript: `// JavaScript code here\nfunction solution() {\n  // Write your code here\n  \n}\n\nconsole.log(solution());`,
+  typescript: `// TypeScript code here\nfunction solution(): void {\n  // Write your code here\n  \n}\n\nconsole.log(solution());`,
+  python: `# Python code here\ndef solution():\n    # Write your code here\n    pass\n\nprint(solution())`,
+  java: `// Java code here\npublic class Solution {\n    public static void main(String[] args) {\n        // Write your code here\n        \n    }\n}`,
+  cpp: `// C++ code here\n#include <iostream>\nusing namespace std;\n\nint main() {\n    // Write your code here\n    \n    return 0;\n}`,
+  c: `// C code here\n#include <stdio.h>\n\nint main() {\n    // Write your code here\n    \n    return 0;\n}`,
+  csharp: `// C# code here\nusing System;\n\nclass Solution {\n    static void Main() {\n        // Write your code here\n        \n    }\n}`,
+  go: `// Go code here\npackage main\n\nimport "fmt"\n\nfunc main() {\n    // Write your code here\n    \n}`,
+  rust: `// Rust code here\nfn main() {\n    // Write your code here\n    \n}`,
+  php: `<?php\n// PHP code here\nfunction solution() {\n    // Write your code here\n    \n}\n\necho solution();`,
+  ruby: `# Ruby code here\ndef solution\n  # Write your code here\n  \nend\n\nputs solution`,
+  swift: `// Swift code here\nimport Foundation\n\nfunc solution() {\n    // Write your code here\n    \n}\n\nprint(solution())`,
 };
 
 const CodePracticeEditor = ({ onClose }: CodePracticeEditorProps) => {
@@ -125,6 +49,9 @@ const CodePracticeEditor = ({ onClose }: CodePracticeEditorProps) => {
   const [cursorPosition, setCursorPosition] = useState({ line: 1, column: 1 });
   const [isCompiling, setIsCompiling] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
+  const [isReviewing, setIsReviewing] = useState(false);
+  const [review, setReview] = useState<any>(null);
+  const [showReview, setShowReview] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [resultType, setResultType] = useState<"success" | "error" | null>(null);
   const [serverStatus, setServerStatus] = useState<"checking" | "online" | "offline">("checking");
@@ -132,6 +59,7 @@ const CodePracticeEditor = ({ onClose }: CodePracticeEditorProps) => {
   const handleLanguageChange = (newLang: string) => {
     setLanguage(newLang);
     setCode(defaultCode[newLang] || "// Write your code here\n");
+    setReview(null);
   };
 
   const handleEditorChange = (value: string | undefined) => {
@@ -156,11 +84,7 @@ const CodePracticeEditor = ({ onClose }: CodePracticeEditorProps) => {
     setResultType(null);
 
     try {
-      const executionResult = await executeCode({
-        code,
-        language,
-      });
-
+      const executionResult = await executeCode({ code, language });
       if (executionResult.compileOutput || executionResult.error) {
         setResult(executionResult.compileOutput || executionResult.error || "Compilation failed");
         setResultType("error");
@@ -182,32 +106,19 @@ const CodePracticeEditor = ({ onClose }: CodePracticeEditorProps) => {
     setResultType(null);
 
     try {
-      const executionResult = await executeCode({
-        code,
-        language,
-      });
-
+      const executionResult = await executeCode({ code, language });
       let outputText = `[${new Date().toLocaleTimeString()}] Program started\n`;
-
-      if (executionResult.compileOutput) {
-        outputText += `Compilation Output:\n${executionResult.compileOutput}\n\n`;
-      }
-
+      if (executionResult.compileOutput) outputText += `Compilation Output:\n${executionResult.compileOutput}\n\n`;
       if (executionResult.error) {
         outputText += `Error:\n${executionResult.error}`;
         setResultType("error");
       } else {
         outputText += `Output:\n${executionResult.output || "(No output)"}`;
-        if (executionResult.executionTime) {
-          outputText += `\n\nExecution Time: ${executionResult.executionTime}`;
-        }
-        if (executionResult.memory) {
-          outputText += `\nMemory Used: ${(executionResult.memory / 1024).toFixed(2)} MB`;
-        }
+        if (executionResult.executionTime) outputText += `\n\nExecution Time: ${executionResult.executionTime}`;
+        if (executionResult.memory) outputText += `\nMemory Used: ${(executionResult.memory / 1024).toFixed(2)} MB`;
         outputText += `\nProcess finished with exit code ${executionResult.exitCode ?? 0}`;
         setResultType("success");
       }
-
       setResult(outputText);
     } catch (error) {
       setResult(`Error: ${error instanceof Error ? error.message : "Unknown error"}`);
@@ -217,7 +128,27 @@ const CodePracticeEditor = ({ onClose }: CodePracticeEditorProps) => {
     }
   };
 
-  // Check server status on mount
+  const handleReview = async () => {
+    if (!code || code.length < 10) {
+      toast.error("Please write some code before requesting a review.");
+      return;
+    }
+    setIsReviewing(true);
+    setShowReview(true);
+    try {
+      const reviewData = await reviewCode({ code, language });
+      if (reviewData) {
+        setReview(reviewData);
+      } else {
+        toast.error("AI review failed. Please try again.");
+      }
+    } catch (error) {
+      toast.error("An error occurred during AI review.");
+    } finally {
+      setIsReviewing(false);
+    }
+  };
+
   useEffect(() => {
     const checkStatus = async () => {
       const isOnline = await checkServerHealth();
@@ -227,113 +158,162 @@ const CodePracticeEditor = ({ onClose }: CodePracticeEditorProps) => {
   }, []);
 
   return (
-    <div className="flex flex-col w-full h-full bg-dark-100 rounded-2xl overflow-hidden border border-dark-200">
+    <div className="flex flex-col w-full h-full bg-[#0a0a0f] rounded-2xl overflow-hidden border border-white/10 shadow-2xl">
       {/* Toolbar */}
-      <div className="flex items-center justify-between px-4 py-3 bg-dark-200 border-b border-dark-200">
+      <div className="flex items-center justify-between px-4 py-3 bg-white/5 border-b border-white/10">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
-            <label className="text-sm text-light-100">Language:</label>
+            <label className="text-[10px] font-black uppercase tracking-widest text-white/40">Language:</label>
             <select
               value={language}
               onChange={(e) => handleLanguageChange(e.target.value)}
-              className="px-3 py-1.5 bg-dark-100 border border-dark-200 rounded-lg text-sm text-light-100 focus:outline-none focus:border-primary-200 transition-colors"
+              className="px-3 py-1.5 bg-black/40 border border-white/10 rounded-lg text-xs font-bold text-white focus:outline-none focus:border-primary/50 transition-colors"
             >
               {languages.map((lang) => (
-                <option key={lang.id} value={lang.id}>
-                  {lang.label}
-                </option>
+                <option key={lang.id} value={lang.id}>{lang.label}</option>
               ))}
             </select>
           </div>
 
           <button
             onClick={() => setTheme(theme === "vs-dark" ? "vs-light" : "vs-dark")}
-            className="p-2 rounded-lg bg-dark-100 hover:bg-dark-200 transition-colors"
-            title="Toggle Theme"
+            className="p-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors text-white/60"
           >
-            {theme === "vs-dark" ? (
-              <svg className="w-5 h-5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-              </svg>
-            ) : (
-              <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-              </svg>
-            )}
+            {theme === "vs-dark" ? <Sparkles className="w-4 h-4 text-yellow-400" /> : <Sparkles className="w-4 h-4" />}
           </button>
         </div>
 
         <div className="flex items-center gap-2">
           <button 
+            onClick={handleReview}
+            disabled={isReviewing}
+            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-black uppercase tracking-widest rounded-lg transition-all disabled:opacity-50"
+          >
+            {isReviewing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+            AI Review
+          </button>
+
+          <button 
             onClick={handleCompile}
             disabled={isCompiling}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-lg transition-colors disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 text-white text-xs font-black uppercase tracking-widest rounded-lg transition-all disabled:opacity-50 border border-white/10"
           >
-            {isCompiling ? (
-              <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-            ) : (
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-            )}
+            {isCompiling ? <Loader2 className="w-4 h-4 animate-spin" /> : <ChevronRight className="w-4 h-4" />}
             Compile
           </button>
 
           <button 
             onClick={handleRun}
             disabled={isRunning}
-            className="flex items-center gap-2 px-4 py-2 bg-success-100 hover:bg-success-200 text-dark-100 font-semibold rounded-lg transition-colors disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2 bg-primary text-black text-xs font-black uppercase tracking-widest rounded-lg transition-all hover:bg-primary/90 disabled:opacity-50"
           >
-            {isRunning ? (
-              <span className="w-4 h-4 border-2 border-dark-100/30 border-t-dark-100 rounded-full animate-spin" />
-            ) : (
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            )}
+            {isRunning ? <Loader2 className="w-4 h-4 animate-spin" /> : <ChevronRight className="w-4 h-4" />}
             Run
           </button>
 
           <button
             onClick={onClose}
-            className="flex items-center gap-2 px-4 py-2 bg-dark-100 hover:bg-destructive-100 hover:text-white text-light-100 font-semibold rounded-lg transition-colors border border-dark-200"
+            className="p-2 bg-white/5 hover:bg-red-500/20 text-white/60 hover:text-red-500 rounded-lg transition-all border border-white/10"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-            Close
+            <X className="w-4 h-4" />
           </button>
         </div>
       </div>
 
-      {/* Main Content - Editor + Result Panel */}
+      {/* Main Content */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Result Panel - Left Side */}
-        <div className="w-72 bg-dark-200 border-r border-dark-200 flex flex-col">
-          <div className="px-4 py-3 bg-dark-200 border-b border-dark-200">
-            <h3 className="text-sm font-semibold text-light-100 flex items-center gap-2">
-              <svg className="w-4 h-4 text-primary-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              Result / Output
+        {/* Result/Review Panel */}
+        <div className={`transition-all duration-300 overflow-hidden flex flex-col border-r border-white/10 bg-black/40 ${showReview ? 'w-[400px]' : 'w-72'}`}>
+          <div className="px-4 py-3 bg-white/5 border-b border-white/10 flex items-center justify-between">
+            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-white/60 flex items-center gap-2">
+               {showReview ? <Sparkles className="w-3 h-3 text-purple-400" /> : <AlertCircle className="w-3 h-3 text-primary" />}
+               {showReview ? 'AI Code Analysis' : 'Execution Output'}
             </h3>
+            {showReview && (
+              <button onClick={() => setShowReview(false)} className="text-white/20 hover:text-white transition-colors">
+                <X className="w-3 h-3" />
+              </button>
+            )}
           </div>
-          <div className="flex-1 p-4 overflow-auto">
-            {result ? (
-              <div className={`text-sm font-mono whitespace-pre-wrap ${resultType === "error" ? "text-destructive-100" : resultType === "success" ? "text-success-100" : "text-light-100"}`}>
-                {result}
-              </div>
+          
+          <div className="flex-1 overflow-auto p-4 custom-scrollbar">
+            {showReview ? (
+              isReviewing ? (
+                <div className="h-full flex flex-col items-center justify-center gap-4 text-center">
+                  <Loader2 className="w-8 h-8 text-purple-500 animate-spin" />
+                  <p className="text-xs font-black uppercase tracking-widest text-white/40 animate-pulse">Analyzing logic & complexity...</p>
+                </div>
+              ) : review ? (
+                <div className="space-y-6">
+                  {/* Score & Verdict */}
+                  <div className="p-4 rounded-2xl bg-gradient-to-br from-purple-500/10 to-transparent border border-purple-500/20">
+                     <div className="flex items-center justify-between mb-4">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-purple-400">Score</span>
+                        <span className="text-2xl font-black text-white italic">{review.overallScore}/10</span>
+                     </div>
+                     <div className={`text-xs font-bold uppercase tracking-widest text-center py-2 rounded-lg ${
+                       review.verdict === 'excellent' ? 'bg-green-500/20 text-green-400' :
+                       review.verdict === 'good' ? 'bg-blue-500/20 text-blue-400' : 'bg-orange-500/20 text-orange-400'
+                     }`}>
+                       {review.verdict.replace('_', ' ')}
+                     </div>
+                  </div>
+
+                  {/* Complexity */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="p-3 rounded-xl bg-white/5 border border-white/10">
+                      <p className="text-[8px] font-black text-white/30 uppercase tracking-widest mb-1">Time</p>
+                      <p className="text-xs font-mono text-cyan-400">{review.timeComplexity}</p>
+                    </div>
+                    <div className="p-3 rounded-xl bg-white/5 border border-white/10">
+                      <p className="text-[8px] font-black text-white/30 uppercase tracking-widest mb-1">Space</p>
+                      <p className="text-xs font-mono text-cyan-400">{review.spaceComplexity}</p>
+                    </div>
+                  </div>
+
+                  {/* Issues */}
+                  {review.issues.length > 0 && (
+                    <div className="space-y-3">
+                      <h4 className="text-[10px] font-black uppercase tracking-widest text-white/40">Critical Issues</h4>
+                      {review.issues.map((issue: any, i: number) => (
+                        <div key={i} className={`p-3 rounded-xl border ${
+                          issue.severity === 'critical' ? 'bg-red-500/5 border-red-500/20' : 'bg-yellow-500/5 border-yellow-500/20'
+                        }`}>
+                          <p className="text-xs font-bold text-white mb-1">{issue.description}</p>
+                          <p className="text-[10px] text-white/50"><span className="text-primary">Fix:</span> {issue.fix}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Tips */}
+                  <div className="p-4 rounded-xl bg-primary/5 border border-primary/20">
+                    <h4 className="text-[10px] font-black uppercase tracking-widest text-primary mb-2 flex items-center gap-2">
+                       <Sparkles className="w-3 h-3" /> Interview Tip
+                    </h4>
+                    <p className="text-xs text-white/80 leading-relaxed italic">&quot;{review.interviewTip}&quot;</p>
+                  </div>
+                </div>
+              ) : null
             ) : (
-              <div className="text-light-400 text-sm italic">
-                Click Compile or Run to see results here...
+              <div className="h-full font-mono text-[11px] leading-relaxed">
+                {result ? (
+                  <div className={`whitespace-pre-wrap ${resultType === "error" ? "text-red-400" : resultType === "success" ? "text-green-400" : "text-white/60"}`}>
+                    {result}
+                  </div>
+                ) : (
+                  <div className="h-full flex flex-col items-center justify-center text-center opacity-20 select-none">
+                     <AlertCircle className="w-12 h-12 mb-4" />
+                     <p className="font-black uppercase tracking-[0.2em]">Awaiting Input...</p>
+                  </div>
+                )}
               </div>
             )}
           </div>
         </div>
 
-        {/* Editor - Right Side */}
-        <div className="flex-1 overflow-hidden">
+        {/* Editor */}
+        <div className="flex-1 overflow-hidden relative">
           <Editor
             height="100%"
             language={language}
@@ -344,68 +324,30 @@ const CodePracticeEditor = ({ onClose }: CodePracticeEditorProps) => {
             options={{
               minimap: { enabled: false },
               fontSize: 14,
-              lineNumbers: "on",
-              roundedSelection: false,
-              scrollBeyondLastLine: false,
-              readOnly: false,
-              automaticLayout: true,
-              padding: { top: 16 },
-              fontFamily: "'Fira Code', 'Consolas', monospace",
-              fontLigatures: true,
-              cursorBlinking: "smooth",
+              fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
+              padding: { top: 20 },
               smoothScrolling: true,
-              contextmenu: true,
-              multiCursorModifier: "ctrlCmd",
-              wordWrap: "on",
-              folding: true,
-              renderWhitespace: "selection",
-              bracketPairColorization: { enabled: true },
-              formatOnPaste: true,
-              formatOnType: true,
-              suggest: {
-                showKeywords: true,
-                showSnippets: true,
-                showFunctions: true,
-                showVariables: true,
-              },
+              cursorBlinking: "expand",
+              automaticLayout: true,
             }}
-            loading={
-              <div className="flex items-center justify-center h-full text-light-100">
-                <span className="w-6 h-6 border-2 border-primary-200 border-t-transparent rounded-full animate-spin mr-2" />
-                Loading Editor...
-              </div>
-            }
           />
         </div>
       </div>
 
       {/* Status Bar */}
-      <div className="flex items-center justify-between px-4 py-2 bg-dark-200 border-t border-dark-200 text-xs text-light-100">
-        <div className="flex items-center gap-4">
-          <span>{language.charAt(0).toUpperCase() + language.slice(1)}</span>
-          <span>UTF-8</span>
+      <div className="flex items-center justify-between px-4 py-2 bg-white/5 border-t border-white/10 text-[10px] font-black uppercase tracking-[0.15em] text-white/30">
+        <div className="flex items-center gap-6">
+          <span className="text-primary">{language}</span>
           <span>Ln {cursorPosition.line}, Col {cursorPosition.column}</span>
-          <span className="flex items-center gap-1.5">
-            <span
-              className={`w-2 h-2 rounded-full ${
-                serverStatus === "online"
-                  ? "bg-success-100"
-                  : serverStatus === "offline"
-                  ? "bg-destructive-100"
-                  : "bg-yellow-500 animate-pulse"
-              }`}
-            />
-            <span className="text-light-400">
-              {serverStatus === "online"
-                ? "Server Online"
-                : serverStatus === "offline"
-                ? "Server Offline"
-                : "Checking..."}
-            </span>
+          <span className="flex items-center gap-2">
+            <span className={`w-1.5 h-1.5 rounded-full ${serverStatus === "online" ? "bg-green-500" : "bg-red-500 animate-pulse"}`} />
+            {serverStatus}
           </span>
         </div>
         <div className="flex items-center gap-2">
-          <span>{resultType === "success" ? "✓ Success" : resultType === "error" ? "✗ Error" : "Ready"}</span>
+          {resultType === "success" && <CheckCircle2 className="w-3 h-3 text-green-500" />}
+          {resultType === "error" && <AlertCircle className="w-3 h-3 text-red-500" />}
+          {resultType ? resultType : "Ready"}
         </div>
       </div>
     </div>
