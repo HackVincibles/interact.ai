@@ -13,7 +13,8 @@ import {
   Target, 
   Trophy, 
   User as UserIcon,
-  ChevronRight
+  ChevronRight,
+  PlaySquare
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -23,6 +24,7 @@ const sidebarLinks = [
   { label: "AI Interview", href: "/interview", icon: Mic },
   { label: "Try Code", href: "/code-editor", icon: Code },
   { label: "Group Discussion", href: "/gd", icon: Users, modal: false },
+  { label: "Playlist Tube", href: "/playlist-tube", icon: PlaySquare, modal: false },
 
   { label: "Prep Resources", href: "https://aveshpathaklms.vercel.app/dashboard", icon: GraduationCap, external: true },
   { label: "Job Matches", href: "/matches", icon: Target },

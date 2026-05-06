@@ -129,7 +129,12 @@ const Agent = ({
 
     const onUserSpeechEnd = () => setIsUserSpeaking(false);
 
-    const onError = (error: Error) => console.error("Vapi Error:", error);
+    const onError = (error: any) => {
+      console.error("Vapi Error details:", error);
+      const errMsg = error?.error?.message || error?.message || "Failed to connect to AI Assistant. Please check your VAPI configuration.";
+      toast.error(typeof errMsg === 'string' ? errMsg : "AI Connection Error");
+      setCallStatus(CallStatus.INACTIVE);
+    };
 
     vapi.on("call-start", onCallStart);
     vapi.on("call-end", onCallEnd);

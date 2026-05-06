@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Mic, Code, Users, ArrowRight, GraduationCap, Heart, Trophy, BarChart3, Star, TrendingUp, Zap, Calendar, Target, Award, Loader2 } from "lucide-react";
+import { Mic, Code, Users, ArrowRight, GraduationCap, Heart, Trophy, BarChart3, Star, TrendingUp, Zap, Calendar, Target, Award, Loader2, PlaySquare } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import UserProfile from "@/components/UserProfile";
@@ -214,25 +214,23 @@ function Home() {
             </div>
           </EnhancedCard>
 
-          {/* Prep Resources */}
+          {/* PlaylistTube */}
           <EnhancedCard variant="floating" className="p-5 border-primary/20 bg-primary/5 hover:scale-[1.02] transition-all group">
             <div className="flex flex-col h-full gap-4">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-indigo-600 flex items-center justify-center shrink-0 group-hover:shadow-[0_0_20px_rgba(var(--primary),0.4)] transition-all">
-                <GraduationCap className="w-6 h-6 text-white" />
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-red-500 to-rose-600 flex items-center justify-center shrink-0 group-hover:shadow-[0_0_20px_rgba(239,68,68,0.4)] transition-all">
+                <PlaySquare className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h3 className="font-bold text-lg mb-1 text-primary">Prep Resources</h3>
-                <p className="text-xs text-muted-foreground line-clamp-2">Access the LMS for curated study materials.</p>
+                <h3 className="font-bold text-lg mb-1 text-red-500">Playlist Tube</h3>
+                <p className="text-xs text-muted-foreground line-clamp-2">Import YouTube playlists and track your learning progress.</p>
               </div>
-              <a 
-                href="https://aveshpathaklms.vercel.app/dashboard" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="mt-auto w-full inline-flex items-center justify-center h-10 px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 rounded-md text-xs font-bold transition-all transition-colors"
+              <Button
+                onClick={() => router.push("/playlist-tube")}
+                className="mt-auto w-full inline-flex items-center justify-center h-10 px-4 py-2 bg-red-500 text-white hover:bg-red-600 rounded-md text-xs font-bold transition-all transition-colors"
               >
-                Go to LMS
+                Track Playlists
                 <ArrowRight className="w-3 h-3 ml-2" />
-              </a>
+              </Button>
             </div>
           </EnhancedCard>
         </div>
