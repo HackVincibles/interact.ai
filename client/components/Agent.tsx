@@ -130,9 +130,12 @@ const Agent = ({
     const onUserSpeechEnd = () => setIsUserSpeaking(false);
 
     const onError = (error: any) => {
-      console.error("Vapi Error details:", error);
-      const errMsg = error?.error?.message || error?.message || "Failed to connect to AI Assistant. Please check your VAPI configuration.";
-      toast.error(typeof errMsg === 'string' ? errMsg : "AI Connection Error");
+      console.error("Vapi Error details:", JSON.stringify(error, null, 2));
+      const errMsg = error?.error?.message?.message 
+        || error?.error?.message 
+        || error?.message 
+        || "Failed to connect to AI Assistant. Please check your VAPI configuration.";
+      toast.error(typeof errMsg === 'string' ? errMsg : JSON.stringify(errMsg));
       setCallStatus(CallStatus.INACTIVE);
     };
 
@@ -242,20 +245,36 @@ const Agent = ({
     console.log("VAPI Config:", { workflowId, assistantId, webToken: webToken?.slice(0, 10) + "...", type, userName, userId });
 
     if (type === "generate") {
-      if (!workflowId) {
-        console.error("NEXT_PUBLIC_VAPI_WORKFLOW_ID is not set");
-        setCallStatus(CallStatus.INACTIVE);
-        return;
-      }
-      try {
-        await vapi.start(workflowId, {
-          variableValues: {
-            username: userName,
-            userid: userId,
-          },
-        });
-      } catch (err) {
-        console.error("Vapi start error:", err);
+      // Generate flow: use workflow if available, otherwise fall back to assistant
+      if (workflowId) {
+        try {
+          // vapi.start(assistant, assistantOverrides, squad, workflow, workflowOverrides)
+          await vapi.start(undefined, undefined, undefined, workflowId, {
+            variableValues: {
+              username: userName,
+              userid: userId,
+            },
+          });
+        } catch (err) {
+          console.error("Vapi workflow start error:", err);
+          setCallStatus(CallStatus.INACTIVE);
+        }
+      } else if (assistantId) {
+        // Fallback: use the AI assistant for question generation
+        try {
+          await vapi.start(assistantId, {
+            variableValues: {
+              username: userName,
+              userid: userId,
+            },
+          });
+        } catch (err) {
+          console.error("Vapi generate start error:", err);
+          setCallStatus(CallStatus.INACTIVE);
+        }
+      } else {
+        console.error("Neither NEXT_PUBLIC_VAPI_WORKFLOW_ID nor NEXT_PUBLIC_VAPI_ASSISTANT_ID is set");
+        toast.error("AI configuration missing. Please set up your VAPI keys.");
         setCallStatus(CallStatus.INACTIVE);
       }
     } else {

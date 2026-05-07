@@ -29,8 +29,8 @@ import { getCleanTranscript } from "@/lib/services/transcriptNormalizationServic
 import { evaluateModeratorAction, InterventionType, getModeratorPrompt } from "@/lib/services/gdModeratorPolicy";
 
 
-const ASSISTANT_ID = process.env.NEXT_PUBLIC_VAPI_GD_ASSISTANT_ID || "de783da1-92ea-4cea-96a9-c3dbf818f72e";
-const PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPI_WEB_TOKEN || "2c413d2d-9a63-4216-afc7-a439cbc798f3";
+const ASSISTANT_ID = process.env.NEXT_PUBLIC_VAPI_GD_ASSISTANT_ID || "6e9f8c60-cd74-4cb1-9399-3faea1d8d3fd";
+const PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPI_WEB_TOKEN || "593714ac-4eb0-42de-b4f0-561279f5179a";
 
 
 const SESSION_STATES = {
