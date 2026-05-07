@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTheme } from "next-themes";
 import Editor from "@monaco-editor/react";
 import { editor } from "monaco-editor";
 import { executeCode, checkServerHealth } from "@/lib/services/judge0";
@@ -120,9 +121,19 @@ print(solution())`,
 };
 
 const CodeEditor = ({ onClose, onShareWithAI }: CodeEditorProps) => {
+  const { resolvedTheme } = useTheme();
   const [language, setLanguage] = useState("javascript");
   const [code, setCode] = useState(defaultCode["javascript"]);
   const [theme, setTheme] = useState<"vs-dark" | "vs-light">("vs-dark");
+
+  useEffect(() => {
+    if (resolvedTheme === "light") {
+      setTheme("vs-light");
+    } else {
+      setTheme("vs-dark");
+    }
+  }, [resolvedTheme]);
+
   const [cursorPosition, setCursorPosition] = useState({ line: 1, column: 1 });
   const [isCompiling, setIsCompiling] = useState(false);
   const [isRunning, setIsRunning] = useState(false);

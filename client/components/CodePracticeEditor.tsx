@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTheme } from "next-themes";
 import Editor from "@monaco-editor/react";
 import { editor } from "monaco-editor";
 import { executeCode, checkServerHealth } from "@/lib/services/judge0";
@@ -43,9 +44,18 @@ const defaultCode: Record<string, string> = {
 };
 
 const CodePracticeEditor = ({ onClose }: CodePracticeEditorProps) => {
+  const { resolvedTheme } = useTheme();
   const [language, setLanguage] = useState("javascript");
   const [code, setCode] = useState(defaultCode["javascript"]);
   const [theme, setTheme] = useState<"vs-dark" | "vs-light">("vs-dark");
+
+  useEffect(() => {
+    if (resolvedTheme === "light") {
+      setTheme("vs-light");
+    } else {
+      setTheme("vs-dark");
+    }
+  }, [resolvedTheme]);
   const [cursorPosition, setCursorPosition] = useState({ line: 1, column: 1 });
   const [isCompiling, setIsCompiling] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
@@ -158,16 +168,16 @@ const CodePracticeEditor = ({ onClose }: CodePracticeEditorProps) => {
   }, []);
 
   return (
-    <div className="flex flex-col w-full h-full bg-[#0a0a0f] rounded-2xl overflow-hidden border border-white/10 shadow-2xl">
+    <div className="flex flex-col w-full h-full bg-card rounded-2xl overflow-hidden border border-border shadow-2xl">
       {/* Toolbar */}
-      <div className="flex items-center justify-between px-4 py-3 bg-white/5 border-b border-white/10">
+      <div className="flex items-center justify-between px-4 py-3 bg-muted border-b border-border">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
-            <label className="text-[10px] font-black uppercase tracking-widest text-white/40">Language:</label>
+            <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Language:</label>
             <select
               value={language}
               onChange={(e) => handleLanguageChange(e.target.value)}
-              className="px-3 py-1.5 bg-black/40 border border-white/10 rounded-lg text-xs font-bold text-white focus:outline-none focus:border-primary/50 transition-colors"
+              className="px-3 py-1.5 bg-background border border-border rounded-lg text-xs font-bold text-foreground focus:outline-none focus:border-primary/50 transition-colors"
             >
               {languages.map((lang) => (
                 <option key={lang.id} value={lang.id}>{lang.label}</option>
@@ -177,9 +187,9 @@ const CodePracticeEditor = ({ onClose }: CodePracticeEditorProps) => {
 
           <button
             onClick={() => setTheme(theme === "vs-dark" ? "vs-light" : "vs-dark")}
-            className="p-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors text-white/60"
+            className="p-2 rounded-lg bg-background hover:bg-muted border border-border transition-colors text-muted-foreground"
           >
-            {theme === "vs-dark" ? <Sparkles className="w-4 h-4 text-yellow-400" /> : <Sparkles className="w-4 h-4" />}
+            {theme === "vs-dark" ? <Sparkles className="w-4 h-4 text-yellow-500" /> : <Sparkles className="w-4 h-4" />}
           </button>
         </div>
 
@@ -187,7 +197,7 @@ const CodePracticeEditor = ({ onClose }: CodePracticeEditorProps) => {
           <button 
             onClick={handleReview}
             disabled={isReviewing}
-            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-black uppercase tracking-widest rounded-lg transition-all disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-black uppercase tracking-widest rounded-lg transition-all disabled:opacity-50 cursor-pointer"
           >
             {isReviewing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
             AI Review
@@ -196,7 +206,7 @@ const CodePracticeEditor = ({ onClose }: CodePracticeEditorProps) => {
           <button 
             onClick={handleCompile}
             disabled={isCompiling}
-            className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 text-white text-xs font-black uppercase tracking-widest rounded-lg transition-all disabled:opacity-50 border border-white/10"
+            className="flex items-center gap-2 px-4 py-2 bg-background hover:bg-muted text-foreground text-xs font-black uppercase tracking-widest rounded-lg transition-all disabled:opacity-50 border border-border cursor-pointer"
           >
             {isCompiling ? <Loader2 className="w-4 h-4 animate-spin" /> : <ChevronRight className="w-4 h-4" />}
             Compile
@@ -205,7 +215,7 @@ const CodePracticeEditor = ({ onClose }: CodePracticeEditorProps) => {
           <button 
             onClick={handleRun}
             disabled={isRunning}
-            className="flex items-center gap-2 px-4 py-2 bg-primary text-black text-xs font-black uppercase tracking-widest rounded-lg transition-all hover:bg-primary/90 disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2 bg-primary text-black text-xs font-black uppercase tracking-widest rounded-lg transition-all hover:bg-primary/90 disabled:opacity-50 cursor-pointer"
           >
             {isRunning ? <Loader2 className="w-4 h-4 animate-spin" /> : <ChevronRight className="w-4 h-4" />}
             Run
@@ -213,7 +223,7 @@ const CodePracticeEditor = ({ onClose }: CodePracticeEditorProps) => {
 
           <button
             onClick={onClose}
-            className="p-2 bg-white/5 hover:bg-red-500/20 text-white/60 hover:text-red-500 rounded-lg transition-all border border-white/10"
+            className="p-2 bg-background hover:bg-red-500/15 text-muted-foreground hover:text-red-500 rounded-lg transition-all border border-border cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
@@ -223,14 +233,14 @@ const CodePracticeEditor = ({ onClose }: CodePracticeEditorProps) => {
       {/* Main Content */}
       <div className="flex-1 flex overflow-hidden">
         {/* Result/Review Panel */}
-        <div className={`transition-all duration-300 overflow-hidden flex flex-col border-r border-white/10 bg-black/40 ${showReview ? 'w-[400px]' : 'w-72'}`}>
-          <div className="px-4 py-3 bg-white/5 border-b border-white/10 flex items-center justify-between">
-            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-white/60 flex items-center gap-2">
+        <div className={`transition-all duration-300 overflow-hidden flex flex-col border-r border-border bg-muted/30 ${showReview ? 'w-[400px]' : 'w-72'}`}>
+          <div className="px-4 py-3 bg-muted border-b border-border flex items-center justify-between">
+            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
                {showReview ? <Sparkles className="w-3 h-3 text-purple-400" /> : <AlertCircle className="w-3 h-3 text-primary" />}
                {showReview ? 'AI Code Analysis' : 'Execution Output'}
             </h3>
             {showReview && (
-              <button onClick={() => setShowReview(false)} className="text-white/20 hover:text-white transition-colors">
+              <button onClick={() => setShowReview(false)} className="text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
                 <X className="w-3 h-3" />
               </button>
             )}
@@ -335,7 +345,7 @@ const CodePracticeEditor = ({ onClose }: CodePracticeEditorProps) => {
       </div>
 
       {/* Status Bar */}
-      <div className="flex items-center justify-between px-4 py-2 bg-white/5 border-t border-white/10 text-[10px] font-black uppercase tracking-[0.15em] text-white/30">
+      <div className="flex items-center justify-between px-4 py-2 bg-muted border-t border-border text-[10px] font-black uppercase tracking-[0.15em] text-muted-foreground/60">
         <div className="flex items-center gap-6">
           <span className="text-primary">{language}</span>
           <span>Ln {cursorPosition.line}, Col {cursorPosition.column}</span>

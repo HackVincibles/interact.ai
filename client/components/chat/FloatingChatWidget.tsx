@@ -274,7 +274,7 @@ export default function FloatingChatWidget() {
             <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-card" />
           </div>
 
-          <div className="w-22 h-22 overflow-hidden rounded-full transition-all duration-300 hover:scale-115 hover:-rotate-6 active:scale-90 flex items-center justify-center drop-shadow-[0_8px_24px_rgba(var(--primary),0.25)] relative">
+          <div className="w-22 h-22 overflow-hidden rounded-full transition-all duration-300 hover:scale-115 hover:-rotate-6 active:scale-90 flex items-center justify-center border-2 border-primary/40 shadow-[0_0_20px_rgba(var(--primary),0.25)] bg-white dark:brightness-90 dark:border-primary/60 relative">
             <div className="w-[300%] h-full absolute left-[-100%] flex items-center justify-center">
               <Image
                 src="/robot-purple.png"
