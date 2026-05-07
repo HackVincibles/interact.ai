@@ -13,6 +13,7 @@ import {
 import { toast } from "sonner";
 import { Loader2, FileText, Zap, Target, BookOpen } from "lucide-react";
 import { generateCandidatePDF, generateRecruiterPDF } from "@/lib/services/gdPdfReportService";
+import { BehavioralCoachResults } from "@/src/components/AICoach/BehavioralCoachResults";
 
 
 export default function GDResultsPage() {
@@ -379,6 +380,11 @@ export default function GDResultsPage() {
                       <p className="text-[11px] text-gray-400 italic leading-relaxed">
                         {p.personalCoaching?.roadmap}
                       </p>
+                    </div>
+
+                    {/* Behavioral Insights */}
+                    <div className="pt-4 border-t border-white/5">
+                      <BehavioralCoachResults sessionId={session._id} participantId={p.userId} />
                     </div>
                   </div>
                 </EnhancedCard>

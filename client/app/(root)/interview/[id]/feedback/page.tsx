@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { getCurrentUser } from "@/lib/actions/auth.action";
 import DownloadReportButton from "@/components/DownloadReportButton";
 import EnhancedCard from "@/components/EnhancedCard";
+import { BehavioralCoachResults } from "@/src/components/AICoach/BehavioralCoachResults";
 
 const FeedbackPage = async ({ params }: RouteParams) => {
   const { id } = await params;
@@ -108,6 +109,12 @@ const FeedbackPage = async ({ params }: RouteParams) => {
                ))}
             </div>
           </div>
+
+          {/* Behavioral Results */}
+          <BehavioralCoachResults 
+            sessionId={id} 
+            participantId={user?.id!} 
+          />
         </div>
 
         {/* Right Column: Strengths & Weaknesses */}

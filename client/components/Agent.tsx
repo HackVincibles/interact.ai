@@ -15,6 +15,7 @@ import AIAvatar from "@/components/AIAvatar";
 import DownloadReportButton from "@/components/DownloadReportButton";
 import { generatePDFReport } from "@/lib/pdf-generator";
 import { X, Loader2 } from "lucide-react";
+import { AICoachPanel } from "../src/components/AICoach/AICoachPanel";
 
 enum CallStatus {
   INACTIVE = "INACTIVE",
@@ -52,6 +53,7 @@ const Agent = ({
   const [viewMode, setViewMode] = useState<ViewMode>("ai");
   const mainVideoRef = useRef<HTMLVideoElement>(null);
   const smallVideoRef = useRef<HTMLVideoElement>(null);
+  const coachVideoRef = useRef<HTMLVideoElement>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [isCameraOn, setIsCameraOn] = useState(false);
   const [hasPermission, setHasPermission] = useState(false);
@@ -332,6 +334,9 @@ const Agent = ({
         }
         if (smallVideoRef.current) {
           smallVideoRef.current.srcObject = stream;
+        }
+        if (coachVideoRef.current) {
+          coachVideoRef.current.srcObject = stream;
         }
       }
     };
@@ -722,6 +727,16 @@ const Agent = ({
           </div>
         </div>
       )}
+
+      {/* Hidden video purely for AI Coach inference to run constantly regardless of ViewMode */}
+      <video ref={coachVideoRef} autoPlay playsInline muted className="hidden" />
+
+      {/* Mount the AI Coach Panel */}
+      <AICoachPanel 
+        videoRef={coachVideoRef} 
+        sessionId={interviewId}
+        participantId={userId}
+      />
     </div>
   );
 };

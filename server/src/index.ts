@@ -45,7 +45,11 @@ import interviewRoutes from './routes/interview';
 import userRoutes from './routes/user';
 import statsRoutes from './routes/stats';
 import playlistRoutes from './routes/playlist';
+<<<<<<< Updated upstream
 import chatRoutes from './routes/chat';
+=======
+import analyticsRoutes from './routes/analytics';
+>>>>>>> Stashed changes
 import path from 'path';
 import { Router } from 'express';
 import { reviewCode } from './controllers/codeReviewController';
@@ -130,7 +134,11 @@ app.use('/api/interviews', interviewRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/stats', statsRoutes);
 app.use('/api/playlists', playlistRoutes);
+<<<<<<< Updated upstream
 app.use('/api/chat', chatRoutes);
+=======
+app.use('/api/analytics', analyticsRoutes);
+>>>>>>> Stashed changes
 
 // AI Code Review route
 const codeReviewRouter = Router();
