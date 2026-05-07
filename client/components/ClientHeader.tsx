@@ -28,7 +28,7 @@ export default function ClientHeader({ initialUser }: ClientHeaderProps) {
   };
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-border/30 bg-background/60 backdrop-blur-md">
+    <header className="sticky top-0 z-50 w-full bg-transparent">
       <div className="container mx-auto px-4">
         <div className="flex h-14 items-center justify-between">
           {/* Logo - Only InteractAI branding */}

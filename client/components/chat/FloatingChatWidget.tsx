@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { Mic, MessageSquare, X, Minus, Bot, Send, Square, Award, Loader2, Sparkles, Star, Trash2, Maximize2 } from "lucide-react";
+import { Mic, MicOff, MessageSquare, X, Minus, Bot, Send, Square, Award, Loader2, Sparkles, Star, Trash2, Maximize2 } from "lucide-react";
 import MarkdownRenderer from "./MarkdownRenderer";
 import ChatMessage, { TypingIndicator } from "./ChatMessage";
 import InterviewSetup from "./InterviewSetup";
@@ -252,12 +252,75 @@ export default function FloatingChatWidget() {
   };
 
   const [inputVal, setInputVal] = useState("");
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef<any>(null);
+
+  useEffect(() => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      const rec = new SpeechRecognition();
+      rec.continuous = true;
+      rec.interimResults = true;
+      rec.lang = "en-US";
+
+      rec.onresult = (event: any) => {
+        let finalTranscript = "";
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+            finalTranscript += event.results[i][0].transcript;
+          }
+        }
+        if (finalTranscript) {
+          setInputVal((prev) => {
+            const trimmed = prev.trim();
+            return trimmed ? `${trimmed} ${finalTranscript}` : finalTranscript;
+          });
+        }
+      };
+
+      rec.onerror = (event: any) => {
+        console.error("Widget Speech recognition error", event.error);
+        setIsListening(false);
+      };
+
+      rec.onend = () => {
+        setIsListening(false);
+      };
+
+      recognitionRef.current = rec;
+    }
+
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+    };
+  }, []);
+
+  const toggleListening = () => {
+    if (!recognitionRef.current) {
+      alert("Speech recognition is not supported in this browser. Please use Chrome, Edge, or Safari.");
+      return;
+    }
+
+    if (isListening) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+    } else {
+      setIsListening(true);
+      recognitionRef.current.start();
+    }
+  };
 
   const handleSend = () => {
     const text = inputVal.trim();
     if (!text || chatLoading) return;
     handleSendMessage(text);
     setInputVal("");
+    if (isListening && recognitionRef.current) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+    }
   };
 
   return (
@@ -449,18 +512,31 @@ export default function FloatingChatWidget() {
                 </div>
               )}
 
-              <div className="relative flex items-center bg-muted/40 border border-border/50 rounded-xl px-3 py-1.5 focus-within:border-primary/50 transition-colors">
+              <div className="relative flex items-center bg-muted/40 border border-border/50 rounded-xl px-2.5 py-1.5 focus-within:border-primary/50 transition-colors">
+                <button
+                  onClick={toggleListening}
+                  disabled={chatLoading}
+                  className={cn(
+                    "p-1.5 rounded-lg flex items-center justify-center transition-all cursor-pointer mr-1.5",
+                    isListening
+                      ? "bg-red-500 text-white animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.4)]"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                  )}
+                  title={isListening ? "Stop listening" : "Speak (Voice-to-Text)"}
+                >
+                  {isListening ? <MicOff size={11} className="animate-bounce" /> : <Mic size={11} />}
+                </button>
                 <input
                   value={inputVal}
                   onChange={(e) => setInputVal(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handleSend()}
-                  placeholder={mode === "interview" ? "Enter your answer..." : "Ask a question..."}
+                  placeholder={isListening ? "Listening... Speak now!" : (mode === "interview" ? "Enter your answer..." : "Ask a question...")}
                   className="flex-1 bg-transparent text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none py-1"
                 />
                 <button
                   onClick={handleSend}
                   disabled={!inputVal.trim() || chatLoading}
-                  className="p-1.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  className="p-1.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer"
                 >
                   <Send size={10} />
                 </button>
