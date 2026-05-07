@@ -64,7 +64,7 @@ export const generateBehavioralSummaryAsync = async (sessionId: string, particip
     if (process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
       try {
         const { text } = await generateText({
-          model: google('models/gemini-1.5-pro-latest'),
+          model: google('gemini-2.5-flash'),
           prompt: promptContext,
           temperature: 0.3, // Keep it objective and consistent
         });

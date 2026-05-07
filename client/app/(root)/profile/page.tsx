@@ -185,6 +185,25 @@ export default function ProfilePage() {
     }
   };
 
+  const handleViewResume = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!user?.resume) return;
+    
+    try {
+      const loadingId = toast.loading("Opening resume...");
+      const response = await fetch(user.resume);
+      const blob = await response.blob();
+      // Create a local blob URL and specify the MIME type as application/pdf
+      // This forces the browser to open it natively, completely bypassing Cloudinary's forced download header!
+      const fileURL = URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }));
+      window.open(fileURL, '_blank');
+      toast.dismiss(loadingId);
+    } catch (error) {
+      toast.error("Failed to open resume inline. Opening direct link...");
+      window.open(user.resume, '_blank');
+    }
+  };
+
   const handleAddSkill = () => {
     if (newSkill.trim() && !formData.skills.includes(newSkill.trim())) {
       setFormData({ ...formData, skills: [...formData.skills, newSkill.trim()] });
@@ -330,9 +349,31 @@ export default function ProfilePage() {
               <div className="space-y-4">
                 <div className="p-4 bg-dark-200 rounded-2xl border border-dark-200 flex flex-col gap-4">
                   <p className="text-sm font-bold text-light-100 truncate">{user.resumeName || "Resume.pdf"}</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    <a href={user.resume} target="_blank" className="flex items-center justify-center gap-2 py-2 bg-dark-100 rounded-xl text-xs font-bold text-light-100"><ViewIcon className="w-3.5 h-3.5" /> View</a>
-                    <button onClick={handleDeleteResume} className="flex items-center justify-center gap-2 py-2 bg-destructive-100/10 text-destructive-100 rounded-xl text-xs font-bold"><Trash2 className="w-3.5 h-3.5" /> Delete</button>
+                  <div className="flex items-center gap-2 mt-1">
+                    <button 
+                      onClick={handleViewResume}
+                      title="View Resume"
+                      className="flex-1 flex items-center justify-center py-2.5 bg-dark-100 rounded-xl text-light-100 hover:bg-dark-300 transition-all hover:scale-105 active:scale-95"
+                    >
+                      <ViewIcon className="w-4 h-4" />
+                    </button>
+                    <a 
+                      href={user.resume} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      download
+                      title="Download Resume"
+                      className="flex-1 flex items-center justify-center py-2.5 bg-dark-100 rounded-xl text-light-100 hover:bg-dark-300 transition-all hover:scale-105 active:scale-95"
+                    >
+                      <Download className="w-4 h-4" />
+                    </a>
+                    <button 
+                      onClick={handleDeleteResume} 
+                      title="Delete Resume"
+                      className="flex-1 flex items-center justify-center py-2.5 bg-destructive-100/10 text-destructive-100 rounded-xl hover:bg-destructive-100/20 transition-all hover:scale-105 active:scale-95"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
               </div>

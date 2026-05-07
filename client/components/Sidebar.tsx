@@ -26,6 +26,7 @@ const sidebarLinks = [
   { label: "Try Code", href: "/code-editor", icon: Code },
   { label: "Group Discussion", href: "/gd", icon: Users, modal: false },
   { label: "Playlist Tube", href: "/playlist-tube", icon: PlaySquare, modal: false },
+  { label: "AI Chatbot", href: "/ai-chat", icon: MessageSquare, modal: false },
 
   { label: "Prep Resources", href: "https://aveshpathaklms.vercel.app/dashboard", icon: GraduationCap, external: true },
   { label: "Job Matches", href: "/matches", icon: Target },

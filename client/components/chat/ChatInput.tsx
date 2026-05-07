@@ -52,9 +52,11 @@ export default function ChatInput({ onSend, isLoading, onStop, disabled, placeho
       };
 
       rec.onerror = (event: any) => {
-        console.error("Speech recognition error", event.error);
+        console.warn("Speech recognition warning:", event.error);
         if (event.error === "not-allowed") {
           toast.error("Microphone access was denied. Please allow microphone permissions in your browser.");
+        } else if (event.error === "network") {
+          toast.error("Speech recognition network error: Ensure you have an active internet connection and your browser supports cloud speech-to-text.");
         } else {
           toast.error(`Speech recognition error: ${event.error}`);
         }

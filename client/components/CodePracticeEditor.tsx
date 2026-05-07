@@ -6,7 +6,7 @@ import Editor from "@monaco-editor/react";
 import { editor } from "monaco-editor";
 import { executeCode, checkServerHealth } from "@/lib/services/judge0";
 import { reviewCode } from "@/lib/actions/stats.action";
-import { Loader2, Sparkles, AlertCircle, CheckCircle2, ChevronRight, X } from "lucide-react";
+import { Loader2, Sparkles, AlertCircle, CheckCircle2, ChevronRight, X, Sun, Moon } from "lucide-react";
 import { toast } from "sonner";
 
 interface CodePracticeEditorProps {
@@ -56,6 +56,7 @@ const CodePracticeEditor = ({ onClose }: CodePracticeEditorProps) => {
       setTheme("vs-dark");
     }
   }, [resolvedTheme]);
+  const [stdin, setStdin] = useState("");
   const [cursorPosition, setCursorPosition] = useState({ line: 1, column: 1 });
   const [isCompiling, setIsCompiling] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
@@ -92,9 +93,10 @@ const CodePracticeEditor = ({ onClose }: CodePracticeEditorProps) => {
     setIsCompiling(true);
     setResult("Compiling...");
     setResultType(null);
+    setShowReview(false);
 
     try {
-      const executionResult = await executeCode({ code, language });
+      const executionResult = await executeCode({ code, language, stdin });
       if (executionResult.compileOutput || executionResult.error) {
         setResult(executionResult.compileOutput || executionResult.error || "Compilation failed");
         setResultType("error");
@@ -114,9 +116,10 @@ const CodePracticeEditor = ({ onClose }: CodePracticeEditorProps) => {
     setIsRunning(true);
     setResult("Running...");
     setResultType(null);
+    setShowReview(false);
 
     try {
-      const executionResult = await executeCode({ code, language });
+      const executionResult = await executeCode({ code, language, stdin });
       let outputText = `[${new Date().toLocaleTimeString()}] Program started\n`;
       if (executionResult.compileOutput) outputText += `Compilation Output:\n${executionResult.compileOutput}\n\n`;
       if (executionResult.error) {
@@ -188,8 +191,9 @@ const CodePracticeEditor = ({ onClose }: CodePracticeEditorProps) => {
           <button
             onClick={() => setTheme(theme === "vs-dark" ? "vs-light" : "vs-dark")}
             className="p-2 rounded-lg bg-background hover:bg-muted border border-border transition-colors text-muted-foreground"
+            title={theme === "vs-dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
           >
-            {theme === "vs-dark" ? <Sparkles className="w-4 h-4 text-yellow-500" /> : <Sparkles className="w-4 h-4" />}
+            {theme === "vs-dark" ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4 text-yellow-500" />}
           </button>
         </div>
 
@@ -306,17 +310,31 @@ const CodePracticeEditor = ({ onClose }: CodePracticeEditorProps) => {
                 </div>
               ) : null
             ) : (
-              <div className="h-full font-mono text-[11px] leading-relaxed">
-                {result ? (
-                  <div className={`whitespace-pre-wrap ${resultType === "error" ? "text-red-400" : resultType === "success" ? "text-green-400" : "text-white/60"}`}>
-                    {result}
+              <div className="h-full flex flex-col">
+                <div className="mb-4 flex-shrink-0">
+                  <h4 className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-2">Standard Input</h4>
+                  <textarea 
+                    value={stdin}
+                    onChange={(e) => setStdin(e.target.value)}
+                    placeholder="Enter input for your program here..."
+                    className="w-full h-24 bg-background border border-border rounded-lg p-2 text-xs font-mono text-foreground focus:outline-none focus:border-primary/50 resize-y custom-scrollbar"
+                  />
+                </div>
+                <div className="flex-1 flex flex-col min-h-0">
+                  <h4 className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-2">Output</h4>
+                  <div className="flex-1 overflow-auto font-mono text-[11px] leading-relaxed bg-background/50 rounded-lg p-3 border border-border custom-scrollbar">
+                    {result ? (
+                      <div className={`whitespace-pre-wrap ${resultType === "error" ? "text-red-400" : resultType === "success" ? "text-green-400" : "text-white/60"}`}>
+                        {result}
+                      </div>
+                    ) : (
+                      <div className="h-full flex flex-col items-center justify-center text-center opacity-20 select-none">
+                         <AlertCircle className="w-8 h-8 mb-2" />
+                         <p className="font-black uppercase tracking-[0.2em]">Awaiting Output</p>
+                      </div>
+                    )}
                   </div>
-                ) : (
-                  <div className="h-full flex flex-col items-center justify-center text-center opacity-20 select-none">
-                     <AlertCircle className="w-12 h-12 mb-4" />
-                     <p className="font-black uppercase tracking-[0.2em]">Awaiting Input...</p>
-                  </div>
-                )}
+                </div>
               </div>
             )}
           </div>

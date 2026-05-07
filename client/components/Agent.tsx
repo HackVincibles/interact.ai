@@ -65,6 +65,7 @@ const Agent = ({
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const [showReportPopup, setShowReportPopup] = useState(false);
   const [feedbackData, setFeedbackData] = useState<any>(null);
+  const hasGeneratedReportRef = useRef(false);
 
   // Anti-cheating: Handle tab visibility and beforeunload - ONLY during active call
   useEffect(() => {
@@ -180,7 +181,7 @@ const Agent = ({
     try {
       console.log("Calling createFeedback with:", { interviewId, userId, messageCount: messages.length });
       const result = await createFeedback({
-        interviewId: interviewId!,
+        interviewId: interviewId || "general_practice_mode",
         userId: userId!,
         transcript: messages,
         feedbackId,
@@ -194,7 +195,24 @@ const Agent = ({
         setShowReportPopup(true);
         
         // Auto-download PDF report
-        console.log("Starting PDF generation...");
+        // Convert categoryScores object to array for PDF generator
+        const formatCategoryScores = (scoresObj: any) => {
+          if (!scoresObj) return [];
+          if (Array.isArray(scoresObj)) return scoresObj;
+          const labels: Record<string, string> = {
+            communicationSkills: "Communication Skills",
+            technicalKnowledge: "Technical Knowledge",
+            problemSolving: "Problem Solving",
+            culturalFit: "Cultural Fit",
+            confidenceClarity: "Confidence & Clarity",
+          };
+          return Object.entries(scoresObj).map(([key, value]) => ({
+            name: labels[key] || key,
+            score: Number(value) || 0,
+            comment: ""
+          }));
+        };
+
         const pdfData = {
           type: "interview" as const,
           userName: userName || "Candidate",
@@ -203,13 +221,29 @@ const Agent = ({
           finalAssessment: result.data.finalAssessment,
           strengths: result.data.strengths,
           areasForImprovement: result.data.areasForImprovement,
-          categoryScores: result.data.categoryScores,
+          categoryScores: formatCategoryScores(result.data.categoryScores),
           transcript: messages,
         };
         console.log("PDF data:", pdfData);
         
         await generatePDFReport(pdfData);
         console.log("PDF generated and downloaded successfully");
+
+        // Auto-download Sentiment Analysis PDF if available
+        const sentiment = result.data.sentimentAnalysis;
+        if (sentiment) {
+          const { generateSentimentPDFReport } = await import("@/lib/pdf-generator");
+          await generateSentimentPDFReport({
+            userName: userName || "Candidate",
+            role: type === "generate" ? "Technical" : "Interview",
+            overallTone: sentiment.overallTone || "Neutral",
+            confidenceLevel: sentiment.confidenceLevel || 0,
+            professionalism: sentiment.professionalism || 0,
+            engagement: sentiment.engagement || 0,
+            behavioralNotes: sentiment.behavioralNotes || []
+          });
+          console.log("Sentiment PDF downloaded successfully");
+        }
       } else {
         console.error("Error saving feedback - result not successful:", result);
       }
@@ -222,10 +256,17 @@ const Agent = ({
   };
 
   useEffect(() => {
-    if (callStatus === CallStatus.FINISHED && type === "generate") {
-      router.push("/");
+    if (callStatus === CallStatus.FINISHED) {
+      if (messages.length > 0 && !hasGeneratedReportRef.current) {
+        hasGeneratedReportRef.current = true;
+        console.log("Call finished. Triggering automatic PDF generation...");
+        handleGenerateFeedback();
+      } else if (messages.length === 0 && type === "generate") {
+        router.push("/");
+      }
     }
-  }, [callStatus, router, type]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [callStatus, type, router, messages.length]);
 
   const handleCall = async () => {
     setCallStatus(CallStatus.CONNECTING);
@@ -313,17 +354,13 @@ const Agent = ({
 
   // Start camera immediately when component mounts
   useEffect(() => {
-    console.log("Starting camera...");
     startCamera();
     return () => {
       stopCamera();
     };
   }, []);
 
-  // Debug: log stream state changes
-  useEffect(() => {
-    console.log("Stream state changed:", stream ? "has stream" : "no stream");
-  }, [stream]);
+
 
   // Attach stream to video elements whenever they render
   useEffect(() => {
@@ -347,17 +384,11 @@ const Agent = ({
   }, [stream, viewMode]);
 
   const handleDisconnect = async () => {
-    console.log("handleDisconnect called, type:", type, "messages:", messages.length);
-    setCallStatus(CallStatus.FINISHED);
+    console.log("handleDisconnect called manually. Ending call...");
     vapi.stop();
-    
-    // Auto-generate feedback and PDF for interview type
-    if (type === "interview" && messages.length > 0) {
-      console.log("Triggering automatic PDF generation...");
-      await handleGenerateFeedback();
-    } else {
-      console.log("Skipping PDF generation - type:", type, "messages:", messages.length);
-    }
+    // State will transition to FINISHED via the vapi 'call-end' listener,
+    // which in turn will trigger the report generation automatically.
+    setCallStatus(CallStatus.FINISHED);
   };
 
   // Handle code sharing from CodeEditor to AI
@@ -657,7 +688,10 @@ const Agent = ({
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
           <div className="bg-dark-200 border-2 border-dark-400 rounded-2xl p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto relative">
             <button
-              onClick={() => setShowReportPopup(false)}
+              onClick={() => {
+                setShowReportPopup(false);
+                if (type === "generate") router.push("/");
+              }}
               className="absolute top-4 right-4 p-2 rounded-full bg-dark-300 hover:bg-dark-400 text-gray-400 hover:text-white transition-colors"
             >
               <X className="w-5 h-5" />
@@ -682,6 +716,44 @@ const Agent = ({
                 <h3 className="text-lg font-semibold text-white mb-2">Expert Insights</h3>
                 <p className="text-gray-300 text-sm leading-relaxed">{feedbackData.finalAssessment}</p>
               </div>
+
+              {/* Sentiment Analysis Section */}
+              {feedbackData.sentimentAnalysis && (
+                <div className="bg-dark-300 p-4 rounded-xl border border-violet-500/20">
+                  <h3 className="text-lg font-semibold text-violet-400 mb-3">🧠 Sentiment & Behavioral Analysis</h3>
+                  <div className="flex items-center gap-3 mb-3">
+                    <span className="text-sm text-gray-400">Overall Tone:</span>
+                    <span className="px-3 py-1 bg-violet-500/20 text-violet-300 text-sm font-semibold rounded-full border border-violet-500/30">
+                      {feedbackData.sentimentAnalysis.overallTone || "Neutral"}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-3 mb-3">
+                    {[
+                      { label: "Confidence", value: feedbackData.sentimentAnalysis.confidenceLevel },
+                      { label: "Professionalism", value: feedbackData.sentimentAnalysis.professionalism },
+                      { label: "Engagement", value: feedbackData.sentimentAnalysis.engagement },
+                    ].map((m) => (
+                      <div key={m.label} className="text-center">
+                        <div className="text-2xl font-black text-violet-400">{m.value || 0}%</div>
+                        <div className="text-xs text-gray-500 mt-0.5">{m.label}</div>
+                        <div className="h-1 bg-dark-400 rounded-full mt-1 overflow-hidden">
+                          <div className="h-full bg-violet-500/70 rounded-full" style={{ width: `${m.value || 0}%` }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  {feedbackData.sentimentAnalysis.behavioralNotes?.length > 0 && (
+                    <ul className="space-y-1 mt-2">
+                      {feedbackData.sentimentAnalysis.behavioralNotes.map((note: string, i: number) => (
+                        <li key={i} className="text-gray-300 text-xs flex items-start gap-2">
+                          <span className="text-violet-400 mt-0.5">•</span>
+                          <span>{note}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Strengths */}
@@ -719,8 +791,23 @@ const Agent = ({
                   finalAssessment={feedbackData.finalAssessment || ""}
                   strengths={feedbackData.strengths || []}
                   improvements={feedbackData.areasForImprovement || []}
-                  categoryScores={feedbackData.categoryScores || []}
+                  categoryScores={
+                    feedbackData.categoryScores
+                      ? Array.isArray(feedbackData.categoryScores)
+                        ? feedbackData.categoryScores
+                        : Object.entries(feedbackData.categoryScores).map(([k, v]) => ({
+                            name: k === 'communicationSkills' ? 'Communication Skills' :
+                                  k === 'technicalKnowledge' ? 'Technical Knowledge' :
+                                  k === 'problemSolving' ? 'Problem Solving' :
+                                  k === 'culturalFit' ? 'Cultural Fit' :
+                                  k === 'confidenceClarity' ? 'Confidence & Clarity' : k,
+                            score: Number(v) || 0,
+                            comment: ""
+                          }))
+                      : []
+                  }
                   userName={userName}
+                  sentimentAnalysis={feedbackData.sentimentAnalysis || null}
                 />
               </div>
             </div>
@@ -728,8 +815,10 @@ const Agent = ({
         </div>
       )}
 
-      {/* Hidden video purely for AI Coach inference to run constantly regardless of ViewMode */}
-      <video ref={coachVideoRef} autoPlay playsInline muted className="hidden" />
+      {/* Visually hidden video purely for AI Coach inference to run constantly regardless of ViewMode.
+          Chrome strictly throttles/pauses videos with opacity: 0 or size < 3x3 pixels.
+          Using w-4 h-4 and opacity: 0.01 bypasses this optimization so the inference loop never gets stuck. */}
+      <video ref={coachVideoRef} autoPlay playsInline muted className="absolute w-4 h-4 opacity-[0.01] pointer-events-none -z-10" />
 
       {/* Mount the AI Coach Panel */}
       <AICoachPanel 

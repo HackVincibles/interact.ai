@@ -329,7 +329,7 @@ export default function FloatingChatWidget() {
       {!isOpen && (
         <div onClick={() => setIsOpen(true)} className="group relative flex flex-col items-center cursor-pointer">
           {/* Pulsing Backlight glow */}
-          <span className="absolute inset-2 rounded-full bg-primary/25 animate-ping opacity-60 scale-95" />
+          <span className="absolute inset-0 rounded-full bg-primary/20 animate-ping opacity-60 scale-110" />
           
           {/* Tooltip */}
           <div className="absolute bottom-full mb-3 hidden group-hover:flex items-center justify-center bg-card/95 border border-border/60 text-foreground px-3 py-1.5 rounded-xl shadow-xl text-[10px] font-black uppercase tracking-wider animate-bounce select-none whitespace-nowrap">
@@ -337,15 +337,15 @@ export default function FloatingChatWidget() {
             <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-card" />
           </div>
 
-          <div className="w-22 h-22 overflow-hidden rounded-full transition-all duration-300 hover:scale-115 hover:-rotate-6 active:scale-90 flex items-center justify-center border-2 border-primary/40 shadow-[0_0_20px_rgba(var(--primary),0.25)] bg-white dark:brightness-90 dark:border-primary/60 relative">
+          <div className="w-28 h-28 overflow-hidden rounded-full transition-all duration-300 hover:scale-110 hover:-rotate-6 active:scale-90 flex items-center justify-center bg-transparent relative z-10 drop-shadow-[0_0_15px_rgba(139,92,246,0.3)]">
             <div className="w-[300%] h-full absolute left-[-100%] flex items-center justify-center">
               <Image
                 src="/robot-purple.png"
                 alt="AI Assistant"
-                width={264}
-                height={88}
+                width={336}
+                height={112}
                 priority
-                className="object-contain"
+                className="object-contain drop-shadow-2xl mix-blend-normal"
               />
             </div>
           </div>

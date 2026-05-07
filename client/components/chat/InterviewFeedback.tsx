@@ -159,10 +159,35 @@ export default function InterviewFeedback({ feedback, onNewChat }: InterviewFeed
         </div>
 
         {/* Actions Footer */}
-        <div className="pt-4 border-t border-border/40 flex justify-end">
+        <div className="pt-4 border-t border-border/40 flex flex-col sm:flex-row justify-end gap-3">
+          <button
+            onClick={() => {
+              import("@/lib/pdf-generator").then(({ generatePDFReport }) => {
+                const categoryArr = Object.entries(categoryScores || {}).map(([key, score]) => ({
+                  name: CATEGORY_LABELS[key] || key,
+                  score: Number(score),
+                  comment: ""
+                }));
+                generatePDFReport({
+                  type: "interview",
+                  userName: "Candidate",
+                  role: "Software Engineer",
+                  totalScore: totalScore || 0,
+                  finalAssessment: finalAssessment || "",
+                  strengths: strengths || [],
+                  areasForImprovement: areasForImprovement || [],
+                  categoryScores: categoryArr,
+                });
+              });
+            }}
+            className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-amber-500/10 text-amber-500 border border-amber-500/20 font-bold hover:bg-amber-500/20 transition-all hover:scale-[1.02] active:scale-[0.98] shadow-sm"
+          >
+            <span>Download PDF Report</span>
+          </button>
+          
           <button
             onClick={onNewChat}
-            className="flex items-center gap-2 px-6 py-3 rounded-xl bg-primary text-primary-foreground font-bold hover:bg-primary/90 transition-all hover:scale-[1.02] active:scale-[0.98] shadow-md"
+            className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-primary text-primary-foreground font-bold hover:bg-primary/90 transition-all hover:scale-[1.02] active:scale-[0.98] shadow-md"
           >
             <span>Start a New Practice Session</span>
             <ArrowRight size={14} />

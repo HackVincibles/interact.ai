@@ -10,6 +10,18 @@ import { checkPosture, checkFaceFraming, checkEyeContact } from '../utils/postur
  * This approach is fully compatible with Next.js (webpack & turbopack) since
  * it uses standard dynamic import() instead of the Worker URL pattern.
  */
+// --- Suppress MediaPipe WASM informational logs from Next.js dev error overlay ---
+// The WASM runtime outputs "INFO: ..." messages via console.error which Next.js
+// incorrectly treats as unhandled errors and shows in the red dev overlay.
+if (typeof window !== 'undefined') {
+  const _origConsoleError = console.error.bind(console);
+  console.error = (...args: any[]) => {
+    const msg = typeof args[0] === 'string' ? args[0] : '';
+    if (msg.startsWith('INFO:') || msg.includes('TensorFlow Lite') || msg.includes('XNNPACK')) return;
+    _origConsoleError(...args);
+  };
+}
+
 // --- Global Singletons to prevent WASM resource conflicts in Next.js/React StrictMode ---
 let globalLandmarker: any = null;
 let globalResolver: any = null;

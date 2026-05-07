@@ -47,7 +47,8 @@ router.post('/', async (req, res) => {
 
     console.log(`[Execute] Result: ${result.status} (${result.success ? 'success' : 'failed'})`);
 
-    return res.status(result.success ? 200 : 400).json(result);
+    // Return 200 even if the user's code failed to compile/run, because the API request itself was valid
+    return res.status(200).json(result);
 
   } catch (error) {
     console.error('Code execution route error:', error);
@@ -115,7 +116,8 @@ router.post('/run', async (req, res) => {
     
     console.log(`[Execute/Run] Result: ${result.status} (${result.success ? 'success' : 'failed'})`);
 
-    return res.status(result.success ? 200 : 400).json(result);
+    // Return 200 even if the user's code failed to compile/run
+    return res.status(200).json(result);
   } catch (error) {
     console.error('Code execution error:', error);
     return res.status(500).json({

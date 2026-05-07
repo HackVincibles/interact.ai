@@ -167,10 +167,11 @@ export const updateResume = async (req: any, res: Response) => {
       return res.status(400).json({ success: false, message: 'Please upload a resume' });
     }
 
-    // Upload to Cloudinary with 'image' type for best PDF viewing support
+    // Upload to Cloudinary with 'raw' type. 
+    // We must use 'raw' because 'image' blocks PDF delivery and throws "Failed to load PDF document"
     const result = await cloudinary.uploader.upload(req.file.path, {
       folder: 'interactai/resumes',
-      resource_type: 'image', 
+      resource_type: 'raw', 
       access_mode: "public"
     });
 

@@ -1,6 +1,5 @@
 import { Request, Response } from 'express';
-import { streamText, generateObject } from 'ai';
-import { google } from '@ai-sdk/google';
+// Removed AI SDK imports
 import { z } from 'zod';
 import { v4 as uuidv4 } from 'uuid';
 import ChatSession from '../models/ChatSession';
@@ -230,8 +229,9 @@ export const sendMessage = async (req: any, res: Response) => {
     return res.status(400).json({ success: false, message: 'Message content is required' });
   }
 
+  let session: any = null;
   try {
-    const session = await ChatSession.findOne({ sessionId, userId });
+    session = await ChatSession.findOne({ sessionId, userId });
     if (!session) {
       return res.status(404).json({ success: false, message: 'Session not found' });
     }
@@ -239,8 +239,8 @@ export const sendMessage = async (req: any, res: Response) => {
       return res.status(400).json({ success: false, message: 'This session is completed. Start a new chat.' });
     }
 
-    // Auto-generate title from first user message
-    if (session.messages.length === 0) {
+    // Auto-generate title from first user message ONLY for tech-helper mode
+    if (session.messages.length === 0 && session.mode === 'tech-helper') {
       session.title = generateTitle(content);
     }
 
@@ -266,42 +266,165 @@ export const sendMessage = async (req: any, res: Response) => {
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
-    res.setHeader('Access-Control-Allow-Origin', process.env.CLIENT_URL || 'http://localhost:3000');
 
     let fullResponse = '';
 
-    const result = streamText({
-      model: google('gemini-2.5-flash'),
-      system: systemPrompt,
-      messages: geminiMessages,
+    const vapiApiKey = process.env.VAPI_API_KEY || '';
+    const vapiAssistantId = session.mode === 'interview'
+      ? (process.env.VAPI_INTERVIEW_ASSISTANT_ID || process.env.VAPI_ASSISTANT_ID || '')
+      : (process.env.VAPI_TECH_HELPER_ASSISTANT_ID || process.env.VAPI_ASSISTANT_ID || '');
+
+    // Build full conversation history as formatted text for Vapi context
+    const historyText = session.messages
+      .filter((m: any) => m.role !== 'system')
+      .map((m: any) => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`)
+      .join('\n');
+
+    // Inject history into the input so Vapi LLM has full context
+    const vapiInput = historyText
+      ? `[CONVERSATION SO FAR:\n${historyText}\n]\n\nContinue naturally from the above conversation. Do NOT re-introduce yourself. The user's latest message is: "${content}"`
+      : content;
+
+    const response = await fetch('https://api.vapi.ai/chat', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${vapiApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        assistant: {
+          model: {
+            provider: 'openai',
+            model: 'gpt-4o-mini',
+            systemPrompt: systemPrompt,
+          },
+        },
+        input: vapiInput,
+        stream: true,
+      }),
     });
 
-    for await (const chunk of result.textStream) {
-      fullResponse += chunk;
-      res.write(`data: ${JSON.stringify({ text: chunk })}\n\n`);
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Vapi API error: ${errorText}`);
     }
 
-    // Save AI response to DB
-    session.messages.push({ role: 'assistant', content: fullResponse, timestamp: new Date() });
-
-    // Track interview question count
-    if (session.mode === 'interview' && session.interviewConfig) {
-      session.interviewConfig.currentQuestion = Math.min(
-        (session.interviewConfig.currentQuestion || 0) + 1,
-        session.interviewConfig.totalQuestions
-      );
+    const reader = response.body;
+    if (!reader) {
+      throw new Error('Vapi response body is null');
     }
 
-    await session.save();
+    const decoder = new TextDecoder();
+    // @ts-ignore
+    for await (const chunk of reader) {
+      const text = decoder.decode(chunk);
+      const lines = text.split('\n');
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const dataStr = line.slice(6).trim();
+          if (!dataStr) continue;
+          try {
+            const parsed = JSON.parse(dataStr);
+            if (parsed.delta) {
+              fullResponse += parsed.delta;
+              res.write(`data: ${JSON.stringify({ text: parsed.delta })}\n\n`);
+            }
+          } catch (e) {
+            // Ignore incomplete chunks
+          }
+        }
+      }
+    }
 
-    res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
-    res.end();
+    // Save AI response to DB if it's not empty
+    if (fullResponse.trim()) {
+      session.messages.push({ role: 'assistant', content: fullResponse.trim(), timestamp: new Date() });
+
+      // Track interview question count
+      if (session.mode === 'interview' && session.interviewConfig) {
+        session.interviewConfig.currentQuestion = Math.min(
+          (session.interviewConfig.currentQuestion || 0) + 1,
+          session.interviewConfig.totalQuestions
+        );
+      }
+
+      await session.save();
+      res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
+      res.end();
+    } else {
+      throw new Error('Received empty response from Gemini AI. Your API quota might be exceeded.');
+    }
   } catch (error: any) {
     console.error('Chat error:', error);
+    const isQuotaError = 
+      error?.statusCode === 429 || 
+      error?.status === 429 ||
+      (error?.message && typeof error.message === 'string' && (
+        error.message.toLowerCase().includes('quota') ||
+        error.message.toLowerCase().includes('limit') ||
+        error.message.toLowerCase().includes('429') ||
+        error.message.toLowerCase().includes('resource_exhausted')
+      ));
+
+    if (isQuotaError && session) {
+      console.warn('⚠️ Gemini Quota Exceeded. Activating word-by-word Mock AI fallback stream!');
+      
+      let fallbackResponse = '';
+      if (session.mode === 'interview') {
+        const mockReplies = [
+          "That's a very solid explanation. Can you elaborate on how you would optimize that for scale and performance?",
+          "Interesting approach! How would you handle potential edge cases, error boundaries, and unexpected inputs in this scenario?",
+          "Excellent. Let's move to the next question: how do you manage global state and asynchronous side-effects in a large-scale application?",
+          "Understood. How do you ensure high performance, indexing, and low latency when querying large databases?",
+          "That wraps up our interview questions! You did a wonderful job explaining your technical decisions. Type 'end interview' to get your detailed feedback and rating."
+        ];
+        const userMsgCount = session.messages.filter((m: any) => m.role === 'user').length;
+        const qIndex = Math.max(0, userMsgCount - 1) % mockReplies.length;
+        fallbackResponse = mockReplies[qIndex];
+      } else {
+        const lastUserMsg = content?.toLowerCase() || '';
+        if (lastUserMsg.includes('react') || lastUserMsg.includes('hook') || lastUserMsg.includes('state') || lastUserMsg.includes('effect')) {
+          fallbackResponse = "That's a great React question! Since my Gemini API quota is temporarily exceeded, here is a quick tip: remember that hooks must be called at the top level of your functional component and never inside loops or conditions. Always list all dependencies in your dependency arrays to avoid stale closures. Let me know if you would like me to review your specific hook implementation once the quota resets!";
+        } else if (lastUserMsg.includes('docker') || lastUserMsg.includes('container') || lastUserMsg.includes('kubernetes')) {
+          fallbackResponse = "Docker is highly essential for modern deployment! Since my Gemini API quota is temporarily exceeded, here's a mentor tip: always use multi-stage builds to minimize your final image size. This keeps your production images secure and fast to download. Feel free to share your Dockerfile or compose configuration once the quota resets and we can optimize it together!";
+        } else if (lastUserMsg.includes('database') || lastUserMsg.includes('sql') || lastUserMsg.includes('mongodb') || lastUserMsg.includes('query')) {
+          fallbackResponse = "Database optimization is key for scale! Since my Gemini API quota is temporarily exceeded, here's a quick tip: ensure your frequently-queried fields are properly indexed, and always explain your query execution plan to spot bottlenecks early. Let's optimize your schemas and query patterns as soon as my API quota resets!";
+        } else if (lastUserMsg.includes('error') || lastUserMsg.includes('bug') || lastUserMsg.includes('debug') || lastUserMsg.includes('fix')) {
+          fallbackResponse = "Debugging is where real learning happens! Since my Gemini API quota is temporarily exceeded, here is a pro-tip: start by isolating the issue. Log the inputs, outputs, and intermediate states. Check your try-catch blocks and network tabs. Share the error stack trace once the quota resets, and we'll track down the bug together!";
+        } else {
+          fallbackResponse = "That is an excellent technical question! Since my Gemini API quota is temporarily exceeded, here is a senior-level perspective: always prioritize clean, modular code design, write descriptive variable names, and keep error handling robust. Let me know if you would like me to dive deeper into your question as soon as my API quota resets!";
+        }
+      }
+
+      if (!res.headersSent) {
+        res.setHeader('Content-Type', 'text/event-stream');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
+        res.setHeader('Access-Control-Allow-Origin', process.env.CLIENT_URL || 'http://localhost:3000');
+        res.setHeader('Access-Control-Allow-Credentials', 'true');
+      }
+
+      // Stream the fallback response word-by-word with typing delay
+      const words = fallbackResponse.split(' ');
+      for (const word of words) {
+        res.write(`data: ${JSON.stringify({ text: word + ' ' })}\n\n`);
+        await new Promise(resolve => setTimeout(resolve, 80)); // 80ms typing delay
+      }
+
+      // Save mock response to DB
+      session.messages.push({ role: 'assistant', content: fallbackResponse, timestamp: new Date() });
+      await session.save();
+
+      res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
+      res.end();
+      return;
+    }
+
+    const msg = error.message;
     if (!res.headersSent) {
-      res.status(500).json({ success: false, message: error.message });
+      res.status(500).json({ success: false, message: msg });
     } else {
-      res.write(`data: ${JSON.stringify({ error: error.message })}\n\n`);
+      res.write(`data: ${JSON.stringify({ error: msg })}\n\n`);
       res.end();
     }
   }
@@ -315,8 +438,9 @@ export const endInterview = async (req: any, res: Response) => {
   const userId = req.user?.id || req.user?._id;
   const { sessionId } = req.params;
 
+  let session: any = null;
   try {
-    const session = await ChatSession.findOne({ sessionId, userId });
+    session = await ChatSession.findOne({ sessionId, userId });
     if (!session) {
       return res.status(404).json({ success: false, message: 'Session not found' });
     }
@@ -333,10 +457,8 @@ export const endInterview = async (req: any, res: Response) => {
       return res.status(400).json({ success: false, message: 'No conversation to evaluate' });
     }
 
-    const { object: feedback } = await generateObject({
-      model: google('gemini-2.5-flash'),
-      schema: feedbackSchema,
-      prompt: `You are an expert HR evaluator. Analyze this mock interview transcript and provide detailed feedback.
+    const vapiApiKey = process.env.VAPI_API_KEY || '';
+    const systemPrompt = `You are an expert HR evaluator. Analyze this mock interview transcript and provide detailed feedback.
 
 Interview Role: ${session.interviewConfig?.role || 'Software Engineer'}
 Tech Stack: ${session.interviewConfig?.techStack?.join(', ') || 'General'}
@@ -346,13 +468,77 @@ TRANSCRIPT:
 ${transcript}
 
 INSTRUCTIONS:
-- Score each category 0-100 based on the candidate's actual performance in the transcript
-- totalScore = weighted average of all category scores
-- rating = 1-5 stars (1=poor, 2=below average, 3=average, 4=good, 5=excellent)
-- strengths: 2-4 specific things the candidate did well (with examples from transcript)
-- areasForImprovement: 2-4 specific areas to work on (with actionable advice)
-- finalAssessment: 2-3 sentences summary of overall performance and hiring recommendation`,
+Evaluate the candidate dynamically based purely on the provided transcript.
+You MUST return ONLY valid JSON matching this exact schema. Do NOT return markdown formatting (do not wrap in \`\`\`json) or extra text.
+Replace the example numbers and placeholder strings below with the candidate's ACTUAL dynamic evaluation scores:
+
+{
+  "totalScore": <evaluate dynamic total score 0-100>,
+  "categoryScores": {
+    "communicationSkills": <dynamic score 0-100>,
+    "technicalKnowledge": <dynamic score 0-100>,
+    "problemSolving": <dynamic score 0-100>,
+    "culturalFit": <dynamic score 0-100>,
+    "confidenceClarity": <dynamic score 0-100>
+  },
+  "strengths": ["<dynamic strength 1>", "<dynamic strength 2>"],
+  "areasForImprovement": ["<dynamic improvement 1>", "<dynamic improvement 2>"],
+  "finalAssessment": "<dynamic summary based on the interview>",
+  "rating": <dynamic rating 1-5>,
+  "sentimentAnalysis": {
+    "overallTone": "<dynamic tone e.g. Confident, Enthusiastic, Hesitant>",
+    "confidenceLevel": <dynamic percentage 0-100>,
+    "professionalism": <dynamic percentage 0-100>,
+    "engagement": <dynamic percentage 0-100>,
+    "behavioralNotes": ["<dynamic behavioral note 1>", "<dynamic behavioral note 2>"]
+  }
+}
+
+IMPORTANT: Your response must be the complete JSON object starting with the '{' character and ending with the '}' character. Do not omit the opening brace!`;
+
+    const response = await fetch('https://api.vapi.ai/chat', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${vapiApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        assistant: {
+          model: {
+            provider: 'openai',
+            model: 'gpt-4o',
+            systemPrompt: systemPrompt,
+          },
+        },
+        input: "Please generate the JSON feedback report.",
+        stream: false,
+      }),
     });
+
+    if (!response.ok) {
+      throw new Error(`Vapi API error: ${await response.text()}`);
+    }
+
+    const data = await response.json();
+    let content = data.output?.[0]?.content || '';
+    
+    // Fallback: If VAPI model omits the opening brace and acts like a continuation
+    const trimmed = content.trim();
+    if (trimmed.startsWith('"totalScore"')) {
+      content = '{\n' + content;
+    }
+    
+    // Robustly extract JSON object using substring
+    const jsonStart = content.indexOf('{');
+    const jsonEnd = content.lastIndexOf('}');
+    
+    if (jsonStart === -1 || jsonEnd === -1) {
+      console.error("LLM Output:", content);
+      throw new Error("Invalid response format from AI: Missing JSON object");
+    }
+    
+    const jsonString = content.substring(jsonStart, jsonEnd + 1);
+    const feedback = JSON.parse(jsonString);
 
     // Save feedback and mark as completed
     session.feedback = feedback as any;
@@ -361,9 +547,25 @@ INSTRUCTIONS:
 
     res.status(200).json({ success: true, data: { feedback, sessionId } });
   } catch (error: any) {
-    if (error.statusCode === 429) {
-      return res.status(429).json({ success: false, message: 'AI quota exceeded. Please try again.' });
+    console.error('End interview error:', error);
+    const isQuotaError = 
+      error?.statusCode === 429 || 
+      error?.status === 429 ||
+      (error?.message && typeof error.message === 'string' && (
+        error.message.toLowerCase().includes('quota') ||
+        error.message.toLowerCase().includes('limit') ||
+        error.message.toLowerCase().includes('429') ||
+        error.message.toLowerCase().includes('resource_exhausted')
+      ));
+
+    if (isQuotaError) {
+      console.error('⚠️ Gemini Quota Exceeded during report generation.');
+      return res.status(429).json({ 
+        success: false, 
+        message: 'AI API Rate Limit Exceeded. Please wait a few moments and try generating the report again.' 
+      });
     }
+
     res.status(500).json({ success: false, message: error.message });
   }
 };

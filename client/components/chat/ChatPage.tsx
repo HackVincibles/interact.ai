@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Mic, MessageSquare, Loader2, Sparkles, AlertCircle, Bot, Award, RotateCcw, Minus, ArrowLeft } from "lucide-react";
+import { toast } from "sonner";
 import ChatHistory from "./ChatHistory";
 import ChatInput from "./ChatInput";
 import ChatMessage, { TypingIndicator } from "./ChatMessage";
@@ -17,6 +18,7 @@ import {
   endInterview,
   streamMessage,
 } from "@/lib/actions/chat.action";
+import { generatePDFReport } from "@/lib/pdf-generator";
 import { cn } from "@/lib/utils";
 
 interface Message {
@@ -296,9 +298,43 @@ export default function ChatPage() {
           setActiveSession({ ...activeSession, status: "completed", feedback: res.data.feedback });
         }
         loadHistory("interview");
+
+        // --- Auto Generate PDF Report ---
+        try {
+          const CATEGORY_LABELS: Record<string, string> = {
+            communicationSkills: "Communication Skills",
+            technicalKnowledge: "Technical Knowledge",
+            problemSolving: "Problem Solving",
+            culturalFit: "Cultural Fit",
+            confidenceClarity: "Confidence & Clarity",
+          };
+
+          const categoryArr = Object.entries(res.data.feedback.categoryScores || {}).map(([key, score]) => ({
+            name: CATEGORY_LABELS[key] || key,
+            score: Number(score),
+            comment: ""
+          }));
+
+          const pdfData = {
+            type: "interview" as const,
+            userName: "Candidate", 
+            role: activeSession?.interviewConfig?.role || "Software Engineer",
+            totalScore: res.data.feedback.totalScore || 0,
+            finalAssessment: res.data.feedback.finalAssessment || "",
+            strengths: res.data.feedback.strengths || [],
+            areasForImprovement: res.data.feedback.areasForImprovement || [],
+            categoryScores: categoryArr,
+            transcript: messages.map(m => ({ role: m.role, content: m.content }))
+          };
+          
+          await generatePDFReport(pdfData);
+        } catch (pdfErr) {
+          console.error("Failed to generate PDF report:", pdfErr);
+        }
       }
-    } catch (err) {
-      console.error("Failed to end interview:", err);
+    } catch (err: any) {
+      console.warn("Failed to end interview:", err.message || err);
+      toast.error(err.message || "Failed to analyze interview. Please try again.");
     } finally {
       setEndingInterview(false);
     }
@@ -530,13 +566,7 @@ export default function ChatPage() {
                       setActiveSession(res.data);
                       setActiveSessionId(res.data.sessionId);
                       loadHistory("tech-helper");
-                      // then trigger send message
-                      fetch(`${process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:5000"}/api/chat/sessions/${res.data.sessionId}/message`, {
-                        method: "POST",
-                        credentials: "include",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ content: msg }),
-                      }).then(readStream);
+                      streamMessage(res.data.sessionId, msg).then(readStream);
                     }
                   });
                 }

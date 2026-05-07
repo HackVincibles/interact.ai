@@ -8,6 +8,7 @@ export interface IFeedback extends Document {
   strengths: string[];
   areasForImprovement: string[];
   finalAssessment: string;
+  sentimentAnalysis?: any;
   createdAt: Date;
 }
 
@@ -19,6 +20,7 @@ const FeedbackSchema: Schema = new Schema({
   strengths: { type: [String] },
   areasForImprovement: { type: [String] },
   finalAssessment: { type: String },
+  sentimentAnalysis: { type: Object },
   createdAt: { type: Date, default: Date.now },
 });
 
