@@ -27,6 +27,7 @@ import { QRCodeSVG } from "qrcode.react";
 
 import { getCleanTranscript } from "@/lib/services/transcriptNormalizationService";
 import { evaluateModeratorAction, InterventionType, getModeratorPrompt } from "@/lib/services/gdModeratorPolicy";
+import { AICoachPanel } from "../../src/components/AICoach/AICoachPanel";
 
 
 const ASSISTANT_ID = process.env.NEXT_PUBLIC_VAPI_GD_ASSISTANT_ID || "6e9f8c60-cd74-4cb1-9399-3faea1d8d3fd";
@@ -183,9 +184,14 @@ const MeetingView = ({
   const aiCooldownUntilRef = useRef<number>(0);
   const silenceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
+  // AI Coach: A dedicated hidden video element for coach inference
+  // This does NOT share the same ref as the display video, avoiding any rendering conflicts.
+  const coachVideoRef = useRef<HTMLVideoElement>(null);
+
   const isHost = useMemo(() => {
     return String(session.hostId) === String(userId);
   }, [session.hostId, userId]);
+
 
 
   useEffect(() => {
@@ -402,7 +408,7 @@ Rules:
     }
   }, [joined, sessionState, session._id, userId, participantName]);
 
-  const { join, participants } = useMeeting({
+  const { join, participants, localParticipant } = useMeeting({
     onMeetingJoined: () => {
       setJoined("JOINED");
       toast.success("Successfully joined the GD");
@@ -433,6 +439,17 @@ Rules:
     setJoined("JOINING");
     join();
   };
+
+  // AI Coach: Now that localParticipant is available, hook into local webcam stream
+  const localParticipantWebcam = useParticipant(localParticipant?.id || '');
+  useEffect(() => {
+    if (coachVideoRef.current && localParticipantWebcam?.webcamStream) {
+      const mediaStream = new MediaStream();
+      mediaStream.addTrack(localParticipantWebcam.webcamStream.track);
+      coachVideoRef.current.srcObject = mediaStream;
+      coachVideoRef.current.play().catch(() => {});
+    }
+  }, [localParticipantWebcam?.webcamStream]);
 
   const triggerAI = (text: string) => {
     // Respect cooldown — only intervene if cooldown has passed
@@ -613,6 +630,7 @@ Rules:
   };
 
   return (
+    <>
     <div className={`flex flex-col h-full bg-dark-400 overflow-hidden rounded-3xl border shadow-2xl relative transition-all duration-700 ${sessionState === 'final_minute' ? 'border-red-500/50 shadow-red-500/10' : 'border-white/5'}`}>
       {/* Session State Banner */}
       {sessionState === 'paused' && (
@@ -879,8 +897,19 @@ Rules:
         </div>
       )}
     </div>
+    {/* Hidden video for AI Coach inference — isolated from the display grid */}
+    <video ref={coachVideoRef} autoPlay playsInline muted className="hidden" />
+    {/* AI Coach Panel floats non-intrusively in bottom-right */}
+    <AICoachPanel 
+      videoRef={coachVideoRef} 
+      sessionId={session?._id}
+      participantId={userId}
+    />
+    </>
   );
 };
+
+
 
 export default function VideoSDKMeeting({ 
   roomId, 
