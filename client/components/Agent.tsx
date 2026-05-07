@@ -238,47 +238,31 @@ const Agent = ({
       console.log("Fullscreen request failed (may require user interaction):", err);
     }
 
-    const workflowId = process.env.NEXT_PUBLIC_VAPI_WORKFLOW_ID;
     const assistantId = process.env.NEXT_PUBLIC_VAPI_ASSISTANT_ID;
-    const webToken = process.env.NEXT_PUBLIC_VAPI_WEB_TOKEN;
 
-    console.log("VAPI Config:", { workflowId, assistantId, webToken: webToken?.slice(0, 10) + "...", type, userName, userId });
+    console.log("VAPI Config:", { assistantId, type, userName, userId });
+
+    if (!assistantId) {
+      console.error("NEXT_PUBLIC_VAPI_ASSISTANT_ID is not set");
+      toast.error("AI configuration missing. Please set up your VAPI assistant ID.");
+      setCallStatus(CallStatus.INACTIVE);
+      return;
+    }
 
     if (type === "generate") {
-      // Generate flow: use workflow if available, otherwise fall back to assistant
-      if (workflowId) {
-        try {
-          // vapi.start(assistant, assistantOverrides, squad, workflow, workflowOverrides)
-          await vapi.start(undefined, undefined, undefined, workflowId, {
-            variableValues: {
-              username: userName,
-              userid: userId,
-            },
-          });
-        } catch (err) {
-          console.error("Vapi workflow start error:", err);
-          setCallStatus(CallStatus.INACTIVE);
-        }
-      } else if (assistantId) {
-        // Fallback: use the AI assistant for question generation
-        try {
-          await vapi.start(assistantId, {
-            variableValues: {
-              username: userName,
-              userid: userId,
-            },
-          });
-        } catch (err) {
-          console.error("Vapi generate start error:", err);
-          setCallStatus(CallStatus.INACTIVE);
-        }
-      } else {
-        console.error("Neither NEXT_PUBLIC_VAPI_WORKFLOW_ID nor NEXT_PUBLIC_VAPI_ASSISTANT_ID is set");
-        toast.error("AI configuration missing. Please set up your VAPI keys.");
+      try {
+        await vapi.start(assistantId, {
+          variableValues: {
+            username: userName,
+            userid: userId,
+          },
+        });
+      } catch (err) {
+        console.error("Vapi generate start error:", err);
         setCallStatus(CallStatus.INACTIVE);
       }
     } else {
-      // Interview type - use assistant ID or fallback to inline assistant config
+      // Interview type
       let formattedQuestions = "";
       if (questions) {
         formattedQuestions = questions
@@ -287,22 +271,11 @@ const Agent = ({
       }
 
       try {
-        if (assistantId) {
-          // Use pre-configured assistant from VAPI dashboard
-          await vapi.start(assistantId, {
-            variableValues: {
-              questions: formattedQuestions,
-            },
-          });
-        } else {
-          // Fallback: create temporary assistant inline (not recommended for production)
-          console.warn("NEXT_PUBLIC_VAPI_ASSISTANT_ID not set, using inline assistant config");
-          await vapi.start(interviewer, {
-            variableValues: {
-              questions: formattedQuestions,
-            },
-          });
-        }
+        await vapi.start(assistantId, {
+          variableValues: {
+            questions: formattedQuestions,
+          },
+        });
       } catch (err) {
         console.error("Vapi interview start error:", err);
         setCallStatus(CallStatus.INACTIVE);
@@ -369,8 +342,17 @@ const Agent = ({
   }, [stream, viewMode]);
 
   const handleDisconnect = async () => {
+    console.log("handleDisconnect called, type:", type, "messages:", messages.length);
     setCallStatus(CallStatus.FINISHED);
     vapi.stop();
+    
+    // Auto-generate feedback and PDF for interview type
+    if (type === "interview" && messages.length > 0) {
+      console.log("Triggering automatic PDF generation...");
+      await handleGenerateFeedback();
+    } else {
+      console.log("Skipping PDF generation - type:", type, "messages:", messages.length);
+    }
   };
 
   // Handle code sharing from CodeEditor to AI
