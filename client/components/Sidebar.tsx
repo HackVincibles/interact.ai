@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
@@ -14,7 +14,8 @@ import {
   Trophy, 
   User as UserIcon,
   ChevronRight,
-  PlaySquare
+  PlaySquare,
+  MessageSquare
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -37,6 +38,12 @@ export default function Sidebar() {
   const router = useRouter();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [showGDModal, setShowGDModal] = useState(false);
+
+  useEffect(() => {
+    if (pathname === "/ai-chat") {
+      setIsCollapsed(true);
+    }
+  }, [pathname]);
 
   return (
     <>

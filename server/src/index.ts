@@ -45,6 +45,7 @@ import interviewRoutes from './routes/interview';
 import userRoutes from './routes/user';
 import statsRoutes from './routes/stats';
 import playlistRoutes from './routes/playlist';
+import chatRoutes from './routes/chat';
 import path from 'path';
 import { Router } from 'express';
 import { reviewCode } from './controllers/codeReviewController';
@@ -124,6 +125,7 @@ app.use('/api/interviews', interviewRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/stats', statsRoutes);
 app.use('/api/playlists', playlistRoutes);
+app.use('/api/chat', chatRoutes);
 
 // AI Code Review route
 const codeReviewRouter = Router();

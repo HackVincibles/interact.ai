@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { Mic, Code, Users, ArrowRight, GraduationCap, Heart, Trophy, BarChart3, Star, TrendingUp, Zap, Calendar, Target, Award, Loader2, PlaySquare } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -15,6 +16,7 @@ import AnalyticsSection from "@/components/AnalyticsSection";
 import JobMatchSection from "@/components/JobMatchSection";
 import LeaderboardSection from "@/components/LeaderboardSection";
 import OnboardingWizard from "@/components/OnboardingWizard";
+import FloatingChatWidget from "@/components/chat/FloatingChatWidget";
 
 import { getCurrentUser } from "@/lib/actions/auth.action";
 import { getDashboardStats, getLeaderboard } from "@/lib/actions/stats.action";
@@ -217,20 +219,20 @@ function Home() {
           {/* PlaylistTube */}
           <EnhancedCard variant="floating" className="p-5 border-primary/20 bg-primary/5 hover:scale-[1.02] transition-all group">
             <div className="flex flex-col h-full gap-4">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-red-500 to-rose-600 flex items-center justify-center shrink-0 group-hover:shadow-[0_0_20px_rgba(239,68,68,0.4)] transition-all">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shrink-0 group-hover:shadow-[0_0_20px_rgba(16,185,129,0.4)] transition-all">
                 <PlaySquare className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h3 className="font-bold text-lg mb-1 text-red-500">Playlist Tube</h3>
+                <h3 className="font-bold text-lg mb-1 text-emerald-500">Playlist Tube</h3>
                 <p className="text-xs text-muted-foreground line-clamp-2">Import YouTube playlists and track your learning progress.</p>
               </div>
-              <Button
+              <button
                 onClick={() => router.push("/playlist-tube")}
-                className="mt-auto w-full inline-flex items-center justify-center h-10 px-4 py-2 bg-red-500 text-white hover:bg-red-600 rounded-md text-xs font-bold transition-all transition-colors"
+                className="mt-auto w-full inline-flex items-center justify-center h-10 px-4 py-2 bg-emerald-500 text-white hover:bg-emerald-600 rounded-lg text-xs font-bold transition-all shadow-lg shadow-emerald-500/20 active:scale-95 cursor-pointer"
               >
                 Track Playlists
                 <ArrowRight className="w-3 h-3 ml-2" />
-              </Button>
+              </button>
             </div>
           </EnhancedCard>
         </div>
@@ -305,6 +307,8 @@ function Home() {
         </div>
       </footer>
 
+      {/* Floating Interactive Robot Widget Popover */}
+      <FloatingChatWidget />
 
     </div>
   );
