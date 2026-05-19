@@ -22,7 +22,7 @@ Replace the example numbers and placeholder strings below with the candidate's A
   "rating": <dynamic rating 1-5>
 }
 
-IMPORTANT: Your response must be the complete JSON object starting with `{` and ending with `}`. Do not omit the opening brace.
+IMPORTANT: Your response must be the complete JSON object starting with { and ending with }. Do not omit the opening brace.`;
 
   const transcript = "Candidate: Hello. Interviewer: What is React? Candidate: A UI library.";
 
@@ -46,7 +46,7 @@ IMPORTANT: Your response must be the complete JSON object starting with `{` and 
   });
 
   const data = await response.json();
-  const content = data.output?.[0]?.content || '';
+  let content = data.output?.[0]?.content || '';
   console.log("RAW CONTENT START");
   console.log(content);
   console.log("RAW CONTENT END");
